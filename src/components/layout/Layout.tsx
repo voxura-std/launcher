@@ -13,7 +13,6 @@ export default function Layout() {
       gap: 8,
     }}>
 
-      {/* Orbes décoratifs */}
       <div style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden' }}>
         <div style={{
           position:'absolute', width:700, height:700, borderRadius:'50%',
@@ -27,7 +26,6 @@ export default function Layout() {
         }}/>
       </div>
 
-      {/* ── Navbar : bloc flottant indépendant ── */}
       <div style={{
         width: '100%', maxWidth: 920, flexShrink: 0,
         borderRadius: 14, overflow: 'hidden',
@@ -41,7 +39,6 @@ export default function Layout() {
         <Navbar />
       </div>
 
-      {/* ── Contenu : bloc flottant indépendant ── */}
       <div style={{
         width: '100%', maxWidth: 920,
         flex: 1, minHeight: 0,

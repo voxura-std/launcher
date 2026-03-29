@@ -16,7 +16,6 @@ export default function Navbar() {
       padding: '8px 12px',
     }}>
 
-      {/* Logo */}
       <div style={{ display:'flex', alignItems:'center', gap:8, marginRight:10, flexShrink:0 }}>
         <div style={{
           width: 28, height: 28, borderRadius: 8, flexShrink: 0,
@@ -34,13 +33,11 @@ export default function Navbar() {
         </span>
       </div>
 
-      {/* Séparateur */}
       <div style={{
         width: 1, height: 16, flexShrink: 0,
         background: 'rgba(255,255,255,0.12)', marginRight: 8,
       }}/>
 
-      {/* Onglets */}
       {navItems.map(({ to, icon: Icon, label }) => (
         <NavLink key={to} to={to} end={to === '/'} style={({ isActive }) => ({
           display: 'flex', alignItems: 'center', gap: 6,
