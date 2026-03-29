@@ -10,7 +10,6 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Layout est le "parent" — toutes les pages s'affichent dans son <Outlet /> */}
         <Route path="/" element={<Layout />}>
           <Route index      element={<Launch />}    />
           <Route path="instances" element={<Instances />} />

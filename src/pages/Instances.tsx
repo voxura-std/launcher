@@ -7,7 +7,6 @@ export default function Instances() {
       padding: 10, boxSizing:'border-box', gap: 10,
     }}>
 
-      {/* ── Sidebar : bloc détaché ── */}
       <aside style={{
         width: 175, flexShrink: 0,
         borderRadius: 12,
@@ -48,7 +47,6 @@ export default function Instances() {
         </button>
       </aside>
 
-      {/* ── Zone principale : bloc détaché ── */}
       <div style={{
         flex:1, minWidth:0,
         borderRadius: 12,
@@ -59,7 +57,6 @@ export default function Instances() {
         overflow: 'hidden',
       }}>
 
-        {/* Header */}
         <div style={{
           display:'flex', alignItems:'center', justifyContent:'space-between',
           padding:'8px 12px', flexShrink:0,
@@ -82,7 +79,6 @@ export default function Instances() {
           </div>
         </div>
 
-        {/* Zone vide */}
         <div style={{
           flex:1, display:'flex', alignItems:'center',
           justifyContent:'center', flexDirection:'column', gap:10,

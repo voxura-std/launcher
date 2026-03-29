@@ -9,10 +9,8 @@ export default function Launch() {
       gap: 10,
     }}>
 
-      {/* Zone centrale transparente */}
       <div style={{ flex: 1 }} />
 
-      {/* ── Barre d'action : bloc détaché avec ses propres coins arrondis ── */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 14px',
@@ -25,7 +23,6 @@ export default function Launch() {
         boxShadow: '0 4px 20px rgba(0,0,0,0.20)',
       }}>
 
-        {/* Joueur */}
         <button style={{
           display:'flex', alignItems:'center', gap:9,
           padding:'7px 13px', minWidth:160,
@@ -48,7 +45,6 @@ export default function Launch() {
           <ChevronDown size={12} color="var(--text-faint)"/>
         </button>
 
-        {/* Instance */}
         <button style={{
           display:'flex', alignItems:'center', gap:9,
           padding:'7px 13px', flex:1, maxWidth:250,
