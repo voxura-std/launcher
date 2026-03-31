@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { useState, useEffect, useCallback } from 'react'
 
 export interface Instance {
@@ -26,20 +27,48 @@ export interface LoaderVersion {
 }
 
 export function useInstances() {
-  const [instances, setInstances] = useState<Instance[]>([])
-  const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState<string | null>(null)
+  const [instances, setInstances]       = useState<Instance[]>([])
+  const [runningIds, setRunningIds]     = useState<Set<string>>(new Set())
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState<string | null>(null)
 
   const loadInstances = useCallback(async () => {
     try {
-      const list = await invoke<Instance[]>('load_instances')
+      const [list, running] = await Promise.all([
+        invoke<Instance[]>('load_instances'),
+        invoke<string[]>('get_running_instances'),
+      ])
       setInstances(list)
+      setRunningIds(new Set(running))
     } catch (e) {
       console.error('Erreur chargement instances:', e)
     }
   }, [])
 
   useEffect(() => { loadInstances() }, [loadInstances])
+
+  useEffect(() => {
+    const unlistenStart = listen<{ instance_id: string }>(
+      'launcher://game-started',
+      ({ payload }) => {
+        setRunningIds(prev => new Set([...prev, payload.instance_id]))
+      }
+    )
+    const unlistenStop = listen<{ instance_id: string }>(
+      'launcher://game-stopped',
+      ({ payload }) => {
+        setRunningIds(prev => {
+          const next = new Set(prev)
+          next.delete(payload.instance_id)
+          return next
+        })
+      }
+    )
+    return () => {
+      unlistenStart.then(f => f())
+      unlistenStop.then(f => f())
+    }
+  }, [])
 
   const createInstance = useCallback(async (
     name: string,
@@ -51,16 +80,12 @@ export function useInstances() {
     setError(null)
     try {
       const instance = await invoke<Instance>('create_instance', {
-        name,
-        mcVersion,
-        loader,
-        loaderVersion,
+        name, mcVersion, loader, loaderVersion,
       })
       setInstances(prev => [instance, ...prev])
       return instance
     } catch (e) {
-      setError(e as string)
-      throw e
+      setError(e as string); throw e
     } finally {
       setLoading(false)
     }
@@ -70,23 +95,30 @@ export function useInstances() {
     try {
       await invoke('delete_instance', { instanceId: id })
       setInstances(prev => prev.filter(i => i.id !== id))
-    } catch (e) {
-      setError(e as string)
-    }
+    } catch (e) { setError(e as string) }
+  }, [])
+
+  const stopInstance = useCallback(async (id: string) => {
+    try {
+      await invoke('stop_instance', { instanceId: id })
+      setRunningIds(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    } catch (e) { setError(e as string) }
   }, [])
 
   const updateInstance = useCallback(async (instance: Instance) => {
     try {
       await invoke('update_instance', { instance })
       setInstances(prev => prev.map(i => i.id === instance.id ? instance : i))
-    } catch (e) {
-      setError(e as string)
-    }
+    } catch (e) { setError(e as string) }
   }, [])
 
   return {
-    instances, loading, error,
-    createInstance, deleteInstance, updateInstance,
-    reload: loadInstances,
+    instances, runningIds, loading, error,
+    createInstance, deleteInstance, stopInstance,
+    updateInstance, reload: loadInstances,
   }
 }

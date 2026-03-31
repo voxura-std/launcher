@@ -116,7 +116,7 @@ export default function Accounts() {
               </div>
               <div style={{ textAlign: 'center' }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>Mode hors-ligne</p>
-                <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 3 }}>Pseudo personnalisé</p>
+                <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 3 }}>Compte cracké</p>
               </div>
             </button>
           </div>
@@ -192,7 +192,7 @@ function AccountRow({ account, isActive, onSelect, onLogout }: {
           {account.username}
         </p>
         <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 1 }}>
-          {account.kind === 'microsoft' ? '🟢 Microsoft' : '⚪ Hors-ligne'}
+          {account.kind === 'microsoft' ? 'Microsoft' : 'Hors-ligne'}
         </p>
       </div>
       {!isActive && (

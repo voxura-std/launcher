@@ -4,7 +4,6 @@ use uuid::Uuid;
 
 use super::types::*;
 
-// ─── API URLs ────────────────────────────────────────
 
 const MOJANG_MANIFEST: &str =
     "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
@@ -13,9 +12,6 @@ const FABRIC_VERSIONS: &str =
 const NEOFORGE_VERSIONS: &str =
     "https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge";
 
-// ─── Versions Minecraft ───────────────────────────────
-
-/// Récupère la liste des versions depuis l'API Mojang
 pub async fn fetch_mc_versions() -> Result<Vec<McVersion>, String> {
     let client = Client::new();
 
@@ -47,7 +43,6 @@ pub async fn fetch_mc_versions() -> Result<Vec<McVersion>, String> {
     Ok(versions)
 }
 
-// ─── Versions Fabric ──────────────────────────────────
 
 pub async fn fetch_fabric_versions() -> Result<Vec<LoaderVersion>, String> {
     let client = Client::new();
@@ -68,7 +63,6 @@ pub async fn fetch_fabric_versions() -> Result<Vec<LoaderVersion>, String> {
     }).collect())
 }
 
-// ─── Versions NeoForge ────────────────────────────────
 
 pub async fn fetch_neoforge_versions() -> Result<Vec<LoaderVersion>, String> {
     let client = Client::new();
@@ -80,7 +74,6 @@ pub async fn fetch_neoforge_versions() -> Result<Vec<LoaderVersion>, String> {
         .text().await
         .map_err(|e| format!("Lecture NeoForge : {e}"))?;
 
-    // NeoForge retourne un JSON avec une liste de versions
     let json: serde_json::Value = serde_json::from_str(&text)
         .map_err(|e| format!("Réponse NeoForge invalide : {e}"))?;
 
@@ -89,19 +82,17 @@ pub async fn fetch_neoforge_versions() -> Result<Vec<LoaderVersion>, String> {
         .ok_or("Format NeoForge inattendu")?
         .iter()
         .filter_map(|v| v.as_str())
-        // Filtre les versions bêta (-beta) et RC (-rc)
         .filter(|v| !v.contains("-beta") && !v.contains("-rc"))
         .map(|v| LoaderVersion {
             version: v.to_string(),
             stable:  true,
         })
-        .rev() // Plus récent en premier
+        .rev()
         .collect();
 
     Ok(versions)
 }
 
-// ─── Versions Forge ───────────────────────────────────
 
 pub async fn fetch_forge_versions(mc_version: &str) -> Result<Vec<LoaderVersion>, String> {
     let client = Client::new();
@@ -124,7 +115,6 @@ pub async fn fetch_forge_versions(mc_version: &str) -> Result<Vec<LoaderVersion>
 
     let mut versions = Vec::new();
 
-    // Cherche recommended et latest pour cette version MC
     for suffix in &["recommended", "latest"] {
         let key = format!("{mc_version}-{suffix}");
         if let Some(v) = promos.get(&key).and_then(|v| v.as_str()) {
@@ -138,9 +128,6 @@ pub async fn fetch_forge_versions(mc_version: &str) -> Result<Vec<LoaderVersion>
     Ok(versions)
 }
 
-// ─── Gestion des instances ────────────────────────────
-
-/// Crée une nouvelle instance
 pub fn create_instance(
     name: String,
     mc_version: String,
@@ -154,17 +141,31 @@ pub fn create_instance(
         return Err("Le nom est trop long (max 64 caractères).".to_string());
     }
 
+    let folder_name = name
+        .trim()
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            ' ' => '_',
+            c => c,
+        })
+        .collect::<String>();
+
+    let id = Uuid::new_v4().to_string();
+    let folder_name = format!("{folder_name}_{}", &id[..8]);
+
     Ok(Instance {
-        id:             Uuid::new_v4().to_string(),
-        name:           name.trim().to_string(),
+        id,
+        name: name.trim().to_string(),
+        folder_name,
         mc_version,
         loader,
         loader_version,
-        created_at:     unix_now(),
-        last_played:    None,
-        play_time:      0,
-        java_args:      None,
-        ram_mb:         2048, // 2 Go par défaut
+        created_at:  unix_now(),
+        last_played: None,
+        play_time:   0,
+        java_args:   None,
+        ram_mb:      2048,
     })
 }
 
