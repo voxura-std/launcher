@@ -2,17 +2,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Instance {
-    pub id:          String,
-    pub name:        String,
-    pub folder_name:    String,
-    pub mc_version:  String,
-    pub loader:      Loader,
+    pub id: String,
+    pub name: String,
+    pub folder_name: String,
+    pub mc_version: String,
+    pub loader: Loader,
     pub loader_version: Option<String>,
-    pub created_at:  u64,
+    pub created_at: u64,
     pub last_played: Option<u64>,
-    pub play_time:   u64,
-    pub java_args:   Option<String>,
-    pub ram_mb:      u32,
+    pub play_time: u64,
+    pub java_args: Option<String>,
+    pub ram_mb: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -28,18 +28,18 @@ pub enum Loader {
 impl std::fmt::Display for Loader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Loader::Vanilla  => write!(f, "Vanilla"),
-            Loader::Fabric   => write!(f, "Fabric"),
-            Loader::Forge    => write!(f, "Forge"),
+            Loader::Vanilla => write!(f, "Vanilla"),
+            Loader::Fabric => write!(f, "Fabric"),
+            Loader::Forge => write!(f, "Forge"),
             Loader::NeoForge => write!(f, "NeoForge"),
-            Loader::Quilt    => write!(f, "Quilt"),
+            Loader::Quilt => write!(f, "Quilt"),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McVersion {
-    pub id:           String,
+    pub id: String,
     pub version_type: McVersionType,
     pub release_time: String,
 }
@@ -58,9 +58,8 @@ pub enum McVersionType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoaderVersion {
     pub version: String,
-    pub stable:  bool,
+    pub stable: bool,
 }
-
 
 #[derive(Deserialize)]
 pub struct MojangVersionManifest {
@@ -69,25 +68,18 @@ pub struct MojangVersionManifest {
 
 #[derive(Deserialize)]
 pub struct MojangVersion {
-    pub id:            String,
+    pub id: String,
     #[serde(rename = "type")]
-    pub version_type:  String,
+    pub version_type: String,
     #[serde(rename = "releaseTime")]
-    pub release_time:  String,
+    pub release_time: String,
 }
-
 
 #[derive(Deserialize)]
 pub struct FabricLoaderVersion {
-    pub loader: FabricLoader,
-}
-
-#[derive(Deserialize)]
-pub struct FabricLoader {
     pub version: String,
-    pub stable:  bool,
+    pub stable: bool,
 }
-
 
 #[derive(Deserialize)]
 pub struct ForgeVersion {

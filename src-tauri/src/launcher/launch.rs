@@ -1,14 +1,14 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 
 use super::download::get_game_dir;
-use super::java::{find_java, install_java};
-use super::types::VersionManifest;
-use crate::instances::types::Instance;
+use super::java::find_java;
+use super::types::{Arguments, VersionManifest};
 use crate::auth::types::Account;
+use crate::instances::types::Instance;
 
 pub type RunningProcesses = Arc<Mutex<HashMap<String, u32>>>;
 
@@ -16,52 +16,67 @@ pub async fn launch_instance(
     app: &AppHandle,
     instance: &Instance,
     account: &Account,
+    mc_token: &str,
     running: &RunningProcesses,
 ) -> Result<(), String> {
-    let game_dir   = get_game_dir(app);
-    let version_id = &instance.mc_version;
+    let game_dir = get_game_dir(app);
+    let mc_version = &instance.mc_version;
 
-    let manifest_path = game_dir
-        .join("versions").join(version_id)
-        .join(format!("{version_id}.json"));
+    let version_id = get_version_id(instance, mc_version, &game_dir);
 
-    let manifest_text = tokio::fs::read_to_string(&manifest_path).await
-        .map_err(|_| format!(
-            "Version {version_id} non installée. Lance l'installation d'abord."
-        ))?;
+    let manifest = load_resolved_manifest(&game_dir, &version_id, mc_version).await?;
 
-    let manifest: VersionManifest = serde_json::from_str(&manifest_text)
-        .map_err(|e| format!("Manifest corrompu : {e}"))?;
+    let required_java = manifest
+        .java_version
+        .as_ref()
+        .map(|j| j.major_version)
+        .unwrap_or(21);
 
-    let required_java = manifest.java_version
-        .as_ref().map(|j| j.major_version).unwrap_or(17);
-
-    let java_path = match find_java(required_java) {
-        Some((path, _)) => path,
-        None => {
-            let _ = app.emit("launcher://status", serde_json::json!({
-                "instance_id": instance.id,
-                "status": "installing_java",
-                "message": format!("Java {required_java} non trouvé — installation automatique…")
-            }));
-            install_java(app, required_java).await?
-        }
+    let java_path = if let Some((path, _)) = find_java(required_java) {
+        path
+    } else {
+        super::java::install_java(app, required_java).await
+            .map_err(|e| format!(
+                "Java {required_java} est requis pour cette version de Minecraft mais l'installation automatique a échoué : {e}\n\
+                 Installe Java {required_java} manuellement depuis adoptium.net puis relance."
+            ))?
     };
 
-    let classpath = build_classpath(&game_dir, version_id, &manifest)?;
-
     let instance_dir = game_dir.join("instances").join(&instance.folder_name);
-    tokio::fs::create_dir_all(&instance_dir).await
-        .map_err(|e| format!("Création dossier instance : {e}"))?;
+    tokio::fs::create_dir_all(&instance_dir).await.ok();
 
-    let natives_dir = game_dir.join("versions").join(version_id).join("natives");
+    let natives_dir = game_dir.join("versions").join(&version_id).join("natives");
     tokio::fs::create_dir_all(&natives_dir).await.ok();
 
+    let classpath = build_classpath(&game_dir, &version_id, &manifest)?;
+
     let ram = instance.ram_mb;
+    let sep = if cfg!(windows) { ";" } else { ":" };
+
+    let replacements: std::collections::HashMap<&str, String> = [
+        (
+            "${natives_directory}",
+            natives_dir.to_string_lossy().to_string(),
+        ),
+        ("${launcher_name}", "VoxuraLauncher".to_string()),
+        ("${launcher_version}", "1.0.0".to_string()),
+        ("${classpath}", classpath.clone()),
+        ("${classpath_separator}", sep.to_string()),
+        (
+            "${library_directory}",
+            game_dir.join("libraries").to_string_lossy().to_string(),
+        ),
+        ("${version_name}", version_id.clone()),
+        ("${java_net_preferIPv6Addresses}", "system".to_string()),
+        ("${java_home}", java_path.to_string_lossy().to_string()),
+    ]
+    .into_iter()
+    .collect();
+
     let mut args: Vec<String> = vec![
+        "-XX:+IgnoreUnrecognizedVMOptions".to_string(),
         format!("-Xmx{ram}m"),
         format!("-Xms{}m", (ram / 2).max(512)),
-        format!("-Djava.library.path={}", natives_dir.display()),
         "-XX:+UseG1GC".to_string(),
         "-XX:+ParallelRefProcEnabled".to_string(),
         "-XX:MaxGCPauseMillis=200".to_string(),
@@ -70,25 +85,49 @@ pub async fn launch_instance(
         "-XX:G1HeapRegionSize=8M".to_string(),
         "-XX:G1ReservePercent=20".to_string(),
         "-XX:InitiatingHeapOccupancyPercent=15".to_string(),
-        "-XX:G1MixedGCLiveThresholdPercent=90".to_string(),
     ];
+
+    let manifest_jvm = extract_jvm_args(&manifest, &replacements);
+    let has_cp_from_manifest = manifest_jvm
+        .iter()
+        .any(|a| a == "-cp" || a == "--class-path" || a == "-classpath");
+
+    args.extend(manifest_jvm);
+
+    if !has_cp_from_manifest {
+        args.push(format!("-Djava.library.path={}", natives_dir.display()));
+        args.push("-cp".to_string());
+        args.push(classpath);
+    }
 
     if let Some(custom) = &instance.java_args {
         args.extend(custom.split_whitespace().map(|s| s.to_string()));
     }
 
-    args.push("-cp".to_string());
-    args.push(classpath);
     args.push(manifest.main_class.clone());
-    args.extend(build_game_args(&manifest, account, version_id, &instance_dir, &game_dir));
 
-    let mut cmd = tokio::process::Command::new(&java_path);
-    cmd.args(&args)
-       .current_dir(&instance_dir)
-       .stdout(Stdio::piped())
-       .stderr(Stdio::piped());
+    let asset_index_id = manifest
+        .asset_index
+        .as_ref()
+        .map(|a| a.id.clone())
+        .unwrap_or_else(|| mc_version.clone());
 
-    let mut child = cmd.spawn()
+    args.extend(build_game_args(
+        &manifest,
+        account,
+        mc_token,
+        &version_id,
+        &asset_index_id,
+        &instance_dir,
+        &game_dir,
+    ));
+
+    let child = tokio::process::Command::new(&java_path)
+        .args(&args)
+        .current_dir(&instance_dir)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .map_err(|e| format!("Impossible de lancer Java : {e}"))?;
 
     let pid = child.id().unwrap_or(0);
@@ -96,30 +135,48 @@ pub async fn launch_instance(
 
     running.lock().unwrap().insert(instance_id.clone(), pid);
 
-    let _ = app.emit("launcher://game-started", serde_json::json!({
-        "instance_id": instance_id,
-        "pid": pid,
-    }));
+    let _ = app.emit(
+        "launcher://game-started",
+        serde_json::json!({
+            "instance_id": instance_id,
+            "pid": pid,
+        }),
+    );
 
-    let app_clone    = app.clone();
+    let app_clone = app.clone();
     let running_clone = running.clone();
-    let id_clone     = instance_id.clone();
+    let id_clone = instance_id.clone();
 
     tokio::spawn(async move {
         match child.wait_with_output().await {
             Ok(output) => {
                 running_clone.lock().unwrap().remove(&id_clone);
-                let _ = app_clone.emit("launcher://game-stopped", serde_json::json!({
-                    "instance_id": id_clone,
-                    "exit_code": output.status.code(),
-                }));
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let exit_code = output.status.code().unwrap_or(-1);
+                if exit_code != 0 {
+                    eprintln!(
+                        "[Game STDERR for {}]\n{}",
+                        id_clone,
+                        &stderr.chars().take(2000).collect::<String>()
+                    );
+                }
+                let _ = app_clone.emit(
+                    "launcher://game-stopped",
+                    serde_json::json!({
+                        "instance_id": id_clone,
+                        "exit_code":   exit_code,
+                    }),
+                );
             }
             Err(e) => {
                 running_clone.lock().unwrap().remove(&id_clone);
-                let _ = app_clone.emit("launcher://game-error", serde_json::json!({
-                    "instance_id": id_clone,
-                    "error": e.to_string(),
-                }));
+                let _ = app_clone.emit(
+                    "launcher://game-error",
+                    serde_json::json!({
+                        "instance_id": id_clone,
+                        "error":       e.to_string(),
+                    }),
+                );
             }
         }
     });
@@ -127,113 +184,476 @@ pub async fn launch_instance(
     Ok(())
 }
 
-pub fn kill_instance(
-    instance_id: &str,
-    running: &RunningProcesses,
-) -> Result<(), String> {
+pub fn kill_instance(instance_id: &str, running: &RunningProcesses) -> Result<(), String> {
     let pid = {
         let map = running.lock().unwrap();
         *map.get(instance_id).ok_or("Instance non lancée")?
     };
 
     #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/F"])
-            .status()
-            .map_err(|e| format!("Impossible de tuer le processus : {e}"))?;
-    }
+    std::process::Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/F"])
+        .status()
+        .map_err(|e| format!("Kill échoué : {e}"))?;
 
     #[cfg(not(target_os = "windows"))]
-    {
-        std::process::Command::new("kill")
-            .args(["-9", &pid.to_string()])
-            .status()
-            .map_err(|e| format!("Impossible de tuer le processus : {e}"))?;
-    }
+    std::process::Command::new("kill")
+        .args(["-9", &pid.to_string()])
+        .status()
+        .map_err(|e| format!("Kill échoué : {e}"))?;
 
     running.lock().unwrap().remove(instance_id);
     Ok(())
 }
 
+fn get_version_id(instance: &Instance, mc_version: &str, game_dir: &PathBuf) -> String {
+    match &instance.loader {
+        crate::instances::types::Loader::Vanilla => mc_version.to_string(),
 
-fn build_classpath(
-    game_dir: &Path,
-    version_id: &str,
-    manifest: &VersionManifest,
-) -> Result<String, String> {
-    let libs_dir   = game_dir.join("libraries");
-    let sep        = if cfg!(windows) { ";" } else { ":" };
-    let current_os = if cfg!(windows) { "windows" }
-                     else if cfg!(target_os = "macos") { "osx" }
-                     else { "linux" };
-
-    let mut paths = Vec::new();
-
-    for lib in &manifest.libraries {
-        if let Some(rules) = &lib.rules {
-            let allowed = rules.iter().any(|r| {
-                let os_ok = r.os.as_ref()
-                    .and_then(|o| o.name.as_ref())
-                    .map(|n| n == current_os)
-                    .unwrap_or(true);
-                os_ok && r.action == "allow"
-            });
-            if !allowed { continue; }
+        crate::instances::types::Loader::Fabric => {
+            if let Some(lv) = &instance.loader_version {
+                format!("fabric-loader-{lv}-{mc_version}")
+            } else {
+                scan_installed_version_id(game_dir, "fabric-loader-", mc_version)
+                    .unwrap_or_else(|| mc_version.to_string())
+            }
         }
 
-        if let Some(dl) = &lib.downloads {
-            if let Some(artifact) = &dl.artifact {
-                let p = libs_dir.join(&artifact.path);
-                if p.exists() { paths.push(p.to_string_lossy().to_string()); }
+        crate::instances::types::Loader::NeoForge => {
+            if let Some(lv) = &instance.loader_version {
+                super::loaders::neoforge::get_neoforge_version_id(lv)
+            } else {
+                scan_installed_version_id(game_dir, "neoforge-", mc_version)
+                    .unwrap_or_else(|| mc_version.to_string())
+            }
+        }
+
+        crate::instances::types::Loader::Forge => {
+            if let Some(lv) = &instance.loader_version {
+                super::loaders::forge::get_forge_version_id(game_dir, mc_version, lv)
+            } else {
+                super::loaders::forge::get_forge_version_id(game_dir, mc_version, "")
+            }
+        }
+
+        crate::instances::types::Loader::Quilt => {
+            if let Some(lv) = &instance.loader_version {
+                format!("quilt-loader-{lv}-{mc_version}")
+            } else {
+                scan_installed_version_id(game_dir, "quilt-loader-", mc_version)
+                    .unwrap_or_else(|| mc_version.to_string())
+            }
+        }
+    }
+}
+
+fn scan_installed_version_id(game_dir: &PathBuf, prefix: &str, mc_version: &str) -> Option<String> {
+    let versions_dir = game_dir.join("versions");
+    let entries = std::fs::read_dir(versions_dir).ok()?;
+    let suffix = format!("-{mc_version}");
+
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with(prefix) && name.ends_with(&suffix) {
+            let json = game_dir
+                .join("versions")
+                .join(&name)
+                .join(format!("{name}.json"));
+            if json.exists() {
+                return Some(name);
+            }
+        }
+    }
+    None
+}
+
+pub async fn load_resolved_manifest(
+    game_dir: &PathBuf,
+    version_id: &str,
+    mc_version: &str,
+) -> Result<VersionManifest, String> {
+    let manifest_path = game_dir
+        .join("versions")
+        .join(version_id)
+        .join(format!("{version_id}.json"));
+
+    let text = tokio::fs::read_to_string(&manifest_path).await
+        .map_err(|_| format!("Version {version_id} non installée. Lance d'abord Minecraft {mc_version} en vanilla pour télécharger les fichiers de base."))?;
+
+    let mut manifest: VersionManifest =
+        serde_json::from_str(&text).map_err(|e| format!("Manifest {version_id} invalide : {e}"))?;
+
+    if let Some(ref parent_id) = manifest.inherits_from.clone() {
+        let parent_path = game_dir
+            .join("versions")
+            .join(parent_id)
+            .join(format!("{parent_id}.json"));
+
+        if !parent_path.exists() {
+            return Err(format!(
+                "Version parente '{parent_id}' non installée. Lance d'abord une instance vanilla {mc_version} pour la télécharger."
+            ));
+        }
+
+        let parent_text = tokio::fs::read_to_string(&parent_path)
+            .await
+            .map_err(|e| format!("Lecture manifest parent {parent_id} : {e}"))?;
+        let parent: VersionManifest = serde_json::from_str(&parent_text)
+            .map_err(|e| format!("Manifest parent {parent_id} invalide : {e}"))?;
+
+        let mut merged_libs = parent.libraries.clone();
+        merged_libs.extend(manifest.libraries.clone());
+        manifest.libraries = merged_libs;
+
+        let parent_jvm = parent
+            .arguments
+            .as_ref()
+            .and_then(|a| a.jvm.clone())
+            .unwrap_or_default();
+        let child_jvm = manifest
+            .arguments
+            .as_ref()
+            .and_then(|a| a.jvm.clone())
+            .unwrap_or_default();
+        let merged_jvm: Vec<serde_json::Value> = parent_jvm.into_iter().chain(child_jvm).collect();
+
+        let parent_game = parent
+            .arguments
+            .as_ref()
+            .and_then(|a| a.game.clone())
+            .unwrap_or_default();
+        let child_game = manifest
+            .arguments
+            .as_ref()
+            .and_then(|a| a.game.clone())
+            .unwrap_or_default();
+        let merged_game: Vec<serde_json::Value> =
+            parent_game.into_iter().chain(child_game).collect();
+
+        manifest.arguments = Some(Arguments {
+            jvm: if merged_jvm.is_empty() {
+                None
+            } else {
+                Some(merged_jvm)
+            },
+            game: if merged_game.is_empty() {
+                None
+            } else {
+                Some(merged_game)
+            },
+        });
+
+        if manifest.minecraft_arguments.is_none() {
+            manifest.minecraft_arguments = parent.minecraft_arguments;
+        }
+
+        if manifest.asset_index.is_none() {
+            manifest.asset_index = parent.asset_index;
+        }
+        if manifest.java_version.is_none() {
+            manifest.java_version = parent.java_version;
+        }
+    }
+
+    Ok(manifest)
+}
+
+fn extract_jvm_args(
+    manifest: &VersionManifest,
+    replacements: &HashMap<&str, String>,
+) -> Vec<String> {
+    let current_os = if cfg!(windows) {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "osx"
+    } else {
+        "linux"
+    };
+
+    let jvm_array = match manifest.arguments.as_ref().and_then(|a| a.jvm.as_ref()) {
+        Some(arr) => arr,
+        None => {
+            return vec![format!(
+                "-Djava.library.path={}",
+                replacements
+                    .get("${natives_directory}")
+                    .map(|s| s.as_str())
+                    .unwrap_or("")
+            )]
+        }
+    };
+
+    let mut result = Vec::new();
+
+    for arg in jvm_array {
+        if let Some(s) = arg.as_str() {
+            result.push(apply_replacements(s, replacements));
+        } else if let Some(obj) = arg.as_object() {
+            if check_rules(obj.get("rules"), current_os) {
+                let value = obj.get("value");
+                match value {
+                    Some(v) if v.is_string() => {
+                        result.push(apply_replacements(v.as_str().unwrap(), replacements));
+                    }
+                    Some(v) if v.is_array() => {
+                        for item in v.as_array().unwrap() {
+                            if let Some(s) = item.as_str() {
+                                result.push(apply_replacements(s, replacements));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
     }
 
-    let client_jar = game_dir
-        .join("versions").join(version_id)
-        .join(format!("{version_id}.jar"));
-    if client_jar.exists() {
-        paths.push(client_jar.to_string_lossy().to_string());
+    result
+}
+
+fn check_rules(rules: Option<&serde_json::Value>, current_os: &str) -> bool {
+    let rules = match rules {
+        Some(r) => r,
+        None => return true,
+    };
+    let arr = match rules.as_array() {
+        Some(a) if !a.is_empty() => a,
+        _ => return true,
+    };
+
+    let mut allowed = false;
+
+    for rule in arr {
+        let action = rule["action"].as_str().unwrap_or("allow");
+
+        let os_ok = if let Some(os) = rule.get("os") {
+            let name_ok = os
+                .get("name")
+                .and_then(|n| n.as_str())
+                .map(|n| n == current_os)
+                .unwrap_or(true);
+            let arch_ok = os
+                .get("arch")
+                .and_then(|a| a.as_str())
+                .map(|a| a == "x86" || a == "x64" || a == "arm64")
+                .unwrap_or(true);
+            name_ok && arch_ok
+        } else {
+            true
+        };
+
+        let features_ok = if rule.get("features").is_some() {
+            false
+        } else {
+            true
+        };
+
+        if os_ok && features_ok {
+            allowed = action == "allow";
+        }
     }
 
-    Ok(paths.join(sep))
+    allowed
+}
+
+fn apply_replacements(s: &str, replacements: &HashMap<&str, String>) -> String {
+    let mut result = s.to_string();
+    for (placeholder, value) in replacements {
+        result = result.replace(placeholder, value);
+    }
+    result
 }
 
 fn build_game_args(
     manifest: &VersionManifest,
     account: &Account,
+    mc_token: &str,
     version_id: &str,
+    asset_index_id: &str,
     instance_dir: &Path,
-    game_dir: &Path,
+    game_dir: &PathBuf,
 ) -> Vec<String> {
-    let assets_dir  = game_dir.join("assets");
-    let asset_index = &manifest.asset_index.id;
-
-    let replace = |s: &str| -> String {
-        s.replace("${auth_player_name}",  &account.username)
-         .replace("${version_name}",      version_id)
-         .replace("${game_directory}",    &instance_dir.to_string_lossy())
-         .replace("${assets_root}",       &assets_dir.to_string_lossy())
-         .replace("${assets_index_name}", asset_index)
-         .replace("${auth_uuid}",         &account.id)
-         .replace("${auth_access_token}", "offline")
-         .replace("${user_type}",         "msa")
-         .replace("${version_type}",      "release")
-         .replace("${user_properties}",   "{}")
+    let user_type = match account.kind {
+        crate::auth::types::AccountKind::Microsoft => "msa",
+        crate::auth::types::AccountKind::Offline => "legacy",
     };
 
+    let replacements: std::collections::HashMap<&str, String> = [
+        ("${auth_player_name}", account.username.clone()),
+        ("${version_name}", version_id.to_string()),
+        (
+            "${game_directory}",
+            instance_dir.to_string_lossy().to_string(),
+        ),
+        (
+            "${assets_root}",
+            game_dir.join("assets").to_string_lossy().to_string(),
+        ),
+        ("${assets_index_name}", asset_index_id.to_string()),
+        ("${auth_uuid}", account.id.clone()),
+        ("${auth_access_token}", mc_token.to_string()),
+        ("${user_type}", user_type.to_string()),
+        ("${version_type}", "release".to_string()),
+        ("${resolution_width}", "854".to_string()),
+        ("${resolution_height}", "480".to_string()),
+        ("${clientid}", "".to_string()),
+        ("${auth_xuid}", "".to_string()),
+    ]
+    .into_iter()
+    .collect();
+
+    let current_os = if cfg!(windows) {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "osx"
+    } else {
+        "linux"
+    };
     let mut args = Vec::new();
 
     if let Some(arguments) = &manifest.arguments {
         if let Some(game) = &arguments.game {
-            for a in game {
-                if let Some(s) = a.as_str() { args.push(replace(s)); }
+            for arg in game {
+                if let Some(s) = arg.as_str() {
+                    args.push(apply_replacements(s, &replacements));
+                } else if let Some(obj) = arg.as_object() {
+                    if check_rules(obj.get("rules"), current_os) {
+                        if let Some(value) = obj.get("value") {
+                            match value {
+                                v if v.is_string() => {
+                                    args.push(apply_replacements(
+                                        v.as_str().unwrap(),
+                                        &replacements,
+                                    ));
+                                }
+                                v if v.is_array() => {
+                                    for item in v.as_array().unwrap() {
+                                        if let Some(s) = item.as_str() {
+                                            args.push(apply_replacements(s, &replacements));
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
             }
         }
     } else if let Some(mc_args) = &manifest.minecraft_arguments {
-        for part in mc_args.split_whitespace() { args.push(replace(part)); }
+        for part in mc_args.split_whitespace() {
+            args.push(apply_replacements(part, &replacements));
+        }
     }
 
     args
+}
+
+fn build_classpath(
+    game_dir: &PathBuf,
+    version_id: &str,
+    manifest: &VersionManifest,
+) -> Result<String, String> {
+    let sep = if cfg!(windows) { ";" } else { ":" };
+    let libs_dir = game_dir.join("libraries");
+    let current_os = if cfg!(windows) {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "osx"
+    } else {
+        "linux"
+    };
+
+    let mut paths: Vec<String> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    let add_path =
+        |paths: &mut Vec<String>, seen: &mut std::collections::HashSet<String>, p: PathBuf| {
+            let key = p.to_string_lossy().to_string();
+            if !seen.contains(&key) {
+                seen.insert(key.clone());
+                if p.exists() {
+                    paths.push(key);
+                }
+            }
+        };
+
+    for lib in &manifest.libraries {
+        if let Some(rules) = &lib.rules {
+            let allowed = rules.iter().fold(false, |_acc, rule| {
+                let os_ok = rule
+                    .os
+                    .as_ref()
+                    .and_then(|o| o.name.as_deref())
+                    .map(|n| n == current_os)
+                    .unwrap_or(true);
+                if os_ok {
+                    rule.action == "allow"
+                } else {
+                    false
+                }
+            });
+            let is_disallowed = rules.iter().any(|r| {
+                let os_ok =
+                    r.os.as_ref()
+                        .and_then(|o| o.name.as_deref())
+                        .map(|n| n != current_os)
+                        .unwrap_or(false);
+                !os_ok && r.action == "disallow"
+            });
+            if is_disallowed && !allowed {
+                continue;
+            }
+        }
+
+        if let Some(downloads) = &lib.downloads {
+            if let Some(artifact) = &downloads.artifact {
+                if !artifact.path.is_empty() {
+                    add_path(&mut paths, &mut seen, libs_dir.join(&artifact.path));
+                    continue;
+                }
+            }
+        }
+
+        if let Some(path) = super::loaders::fabric::maven_name_to_path(&lib.name) {
+            add_path(&mut paths, &mut seen, libs_dir.join(&path));
+        }
+    }
+
+    let is_forge_based = version_id.starts_with("neoforge-") || version_id.contains("-forge-");
+
+    if !is_forge_based {
+        let client_jar = game_dir
+            .join("versions")
+            .join(version_id)
+            .join(format!("{version_id}.jar"));
+
+        if client_jar.exists() {
+            let key = client_jar.to_string_lossy().to_string();
+            if !seen.contains(&key) {
+                seen.insert(key.clone());
+                paths.push(key);
+            }
+        } else if let Some(ref parent_id) = manifest.inherits_from {
+            let vanilla_jar = game_dir
+                .join("versions")
+                .join(parent_id)
+                .join(format!("{parent_id}.jar"));
+            if vanilla_jar.exists() {
+                let key = vanilla_jar.to_string_lossy().to_string();
+                if !seen.contains(&key) {
+                    seen.insert(key.clone());
+                    paths.push(key);
+                }
+            }
+        }
+    }
+
+    if paths.is_empty() {
+        return Err(format!(
+            "Classpath vide pour {version_id}. Les librairies ne sont pas téléchargées."
+        ));
+    }
+
+    Ok(paths.join(sep))
 }

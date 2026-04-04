@@ -87,6 +87,7 @@ pub async fn login_with_webview(
     let stored = StoredTokens {
         access_token:  ms_tokens.0,
         refresh_token: ms_tokens.1,
+        mc_token:      Some(mc_token.clone()),
         expires_at:    unix_now() + 86400,
     };
 

@@ -183,11 +183,6 @@ pub async fn install_java(
          ?architecture={arch}&image_type={image_type}&os={os}&vendor=eclipse"
     );
 
-    let _ = app.emit("launcher://java-install", serde_json::json!({
-        "step": format!("Téléchargement de Java {major_version}…"),
-        "percent": 0
-    }));
-
     let client = reqwest::Client::new();
     let meta: serde_json::Value = client.get(&api_url)
         .send().await
@@ -205,11 +200,6 @@ pub async fn install_java(
         .unwrap_or("java.archive")
         .to_string();
 
-    let _ = app.emit("launcher://java-install", serde_json::json!({
-        "step": format!("Téléchargement de Java {major_version} ({filename})…"),
-        "percent": 10
-    }));
-
     let bytes = client.get(&download_url)
         .send().await
         .map_err(|e| format!("Erreur téléchargement Java : {e}"))?
@@ -220,22 +210,12 @@ pub async fn install_java(
     tokio::fs::write(&archive_path, &bytes).await
         .map_err(|e| format!("Écriture archive : {e}"))?;
 
-    let _ = app.emit("launcher://java-install", serde_json::json!({
-        "step": "Extraction de Java…",
-        "percent": 70
-    }));
-
     extract_java_archive(&archive_path, &install_dir)?;
 
     let _ = tokio::fs::remove_file(&archive_path).await;
 
     let java_bin = find_java_binary_in_dir(&install_dir)
         .ok_or("Binaire java introuvable après extraction")?;
-
-    let _ = app.emit("launcher://java-install", serde_json::json!({
-        "step": format!("Java {major_version} installé !"),
-        "percent": 100
-    }));
 
     Ok(java_bin)
 }

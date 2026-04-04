@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
-    pub id:       String,
+    pub id: String,
     pub username: String,
-    pub kind:     AccountKind,
+    pub kind: AccountKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -16,12 +16,11 @@ pub enum AccountKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredTokens {
-    pub access_token:  String,
+    pub access_token: String,
     pub refresh_token: Option<String>,
-    pub expires_at:    u64,
+    pub mc_token: Option<String>,
+    pub expires_at: u64,
 }
-
-// ─── Réponses API internes ────────────────────────────
 
 #[derive(Deserialize)]
 pub struct XblResponse {
@@ -43,6 +42,6 @@ pub struct XblXui {
 
 #[derive(Deserialize)]
 pub struct McProfileResponse {
-    pub id:   String,
+    pub id: String,
     pub name: String,
 }

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import {
   Plus, RefreshCw, SlidersHorizontal, LayoutGrid,
-  List, Layers, FolderPlus, Trash2, Play, Square,
+  Layers, FolderPlus, Trash2, Play, Square,
   ChevronDown, ChevronLeft, ChevronRight, X, Check,
   Loader2, AlertCircle, Package
 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useInstances, type Instance, type McVersion, type LoaderVersion } from '../hooks/useInstances'
+import { useNavigate } from 'react-router-dom'
 
 
 type LoaderType = 'vanilla' | 'fabric' | 'forge' | 'neoforge' | 'quilt'
@@ -22,15 +23,14 @@ interface Progress {
 const LOADERS: { id: LoaderType; label: string; color: string }[] = [
   { id: 'vanilla',  label: 'Vanilla',  color: '#418d54' },
   { id: 'fabric',   label: 'Fabric',   color: '#e9e2b8' },
-  { id: 'forge',    label: 'Forge',    color: '#2b297a' },
+  { id: 'forge',    label: 'Forge',    color: '#0b3b79ff ' },
   { id: 'neoforge', label: 'NeoForge', color: '#e86c1f' },
-  { id: 'quilt',    label: 'Quilt',    color: '#a058d3' },
 ]
 
 const LOADER_COLOR: Record<LoaderType, string> = {
-  vanilla:  '#6b7280',
-  fabric:   '#b5c3d4',
-  forge:    '#e8a44a',
+  vanilla:  '#418d54',
+  fabric:   '#e9e2b8',
+  forge:    '#0b3b79ff',
   neoforge: '#e86c1f',
   quilt:    '#9f5ece',
 }
@@ -120,9 +120,9 @@ function CreateInstanceModal({
     try {
       let versions: LoaderVersion[] = []
       if (loader === 'fabric')   versions = await invoke('fetch_fabric_versions')
-      if (loader === 'neoforge') versions = await invoke('fetch_neoforge_versions')
+      if (loader === 'neoforge') versions = await invoke('fetch_neoforge_versions', { mcVersion })
       if (loader === 'forge')    versions = await invoke('fetch_forge_versions', { mcVersion })
-      if (loader === 'quilt')    versions = await invoke('fetch_fabric_versions')
+      if (loader === 'quilt')    versions = await invoke('fetch_quilt_versions')
       setLoaderVersions(versions)
       setSelectedLoaderVersion(versions[0]?.version ?? null)
     } catch (e) {
@@ -134,7 +134,10 @@ function CreateInstanceModal({
 
   const handleNext = async () => {
     if (step === 0 && !selectedVersion) { setError('Sélectionne une version.'); return }
-    if (step === 1) await loadLoaderVersions(selectedLoader, selectedVersion!.id)
+    if (step === 1 && selectedLoader !== 'vanilla' && !selectedLoaderVersion) {
+      setError('Sélectionne une version de loader.')
+      return
+    }
     setError(null)
     setStep(s => s + 1)
   }
@@ -296,39 +299,97 @@ function CreateInstanceModal({
 
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 6 }}>
+              <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 4 }}>
                 Version sélectionnée : <strong style={{ color: 'var(--text-main)' }}>{selectedVersion?.id}</strong>
               </p>
-              {LOADERS.map(loader => (
-                <button key={loader.id} onClick={() => { setSelectedLoader(loader.id); setError(null) }} style={{
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '13px 16px', borderRadius: 12,
-                  border: `1px solid ${selectedLoader === loader.id ? `${loader.color}55` : 'rgba(255,255,255,0.08)'}`,
-                  background: selectedLoader === loader.id ? `${loader.color}18` : 'rgba(255,255,255,0.03)',
-                  cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
-                  transition: 'all 0.15s', textAlign: 'left', width: '100%',
-                }}>
-                  <div style={{
-                    width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-                    background: `${loader.color}22`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 800, color: loader.color, fontFamily: 'monospace',
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {LOADERS.map(loader => (
+                  <button key={loader.id} onClick={() => {
+                    setSelectedLoader(loader.id)
+                    setError(null)
+                    if (loader.id !== 'vanilla') loadLoaderVersions(loader.id, selectedVersion!.id)
+                    else { setLoaderVersions([]); setSelectedLoaderVersion(null) }
+                  }} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 12px', borderRadius: 10,
+                    border: `1px solid ${selectedLoader === loader.id ? `${loader.color}55` : 'rgba(255,255,255,0.08)'}`,
+                    background: selectedLoader === loader.id ? `${loader.color}18` : 'rgba(255,255,255,0.03)',
+                    cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
+                    transition: 'all 0.15s', textAlign: 'left', width: '100%',
                   }}>
-                    {loader.label[0]}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>{loader.label}</p>
-                    <p style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 2 }}>
-                      {loader.id === 'vanilla'}
-                      {loader.id === 'fabric'}
-                      {loader.id === 'forge'}
-                      {loader.id === 'neoforge'}
-                      {loader.id === 'quilt'}
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                      background: `${loader.color}22`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 800, color: loader.color, fontFamily: 'monospace',
+                    }}>
+                      {loader.label[0]}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{loader.label}</p>
+                      <p style={{ fontSize: 10.5, color: 'var(--text-faint)', marginTop: 1 }}>
+                        {loader.id === 'vanilla'  && 'Sans mod loader'}
+                        {loader.id === 'fabric'   && 'Léger et rapide'}
+                        {loader.id === 'forge'    && 'Le plus populaire'}
+                        {loader.id === 'neoforge' && 'Fork moderne de Forge'}
+                      </p>
+                    </div>
+                    {selectedLoader === loader.id && <Check size={13} color={loader.color} />}
+                  </button>
+                ))}
+              </div>
+
+              {selectedLoader !== 'vanilla' && (
+                <div style={{
+                  padding: '12px 14px', borderRadius: 10,
+                  background: 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${LOADER_COLOR[selectedLoader]}33`,
+                }}>
+                  <label style={{
+                    fontSize: 11, fontWeight: 600, color: 'var(--text-muted)',
+                    textTransform: 'uppercase', letterSpacing: '0.07em',
+                    display: 'block', marginBottom: 7,
+                  }}>
+                    Version de {LOADERS.find(l => l.id === selectedLoader)?.label}
+                  </label>
+                  {loadingLoader ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Loader2 size={13} color="#60a5fa" style={{ animation: 'spin 1s linear infinite' }} />
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chargement…</span>
+                    </div>
+                  ) : loaderVersions.length === 0 ? (
+                    <p style={{ fontSize: 12, color: '#f87171' }}>
+                      Aucune version de {LOADERS.find(l => l.id === selectedLoader)?.label} pour {selectedVersion?.id}
                     </p>
-                  </div>
-                  {selectedLoader === loader.id && <Check size={15} color={loader.color} />}
-                </button>
-              ))}
+                  ) : (
+                    <div style={{ position: 'relative' }}>
+                      <select
+                        value={selectedLoaderVersion ?? ''}
+                        onChange={e => setSelectedLoaderVersion(e.target.value)}
+                        style={{
+                          width: '100%', padding: '7px 30px 7px 11px',
+                          background: 'rgba(255,255,255,0.07)',
+                          border: `1px solid ${LOADER_COLOR[selectedLoader]}44`,
+                          borderRadius: 8, color: 'var(--text-main)',
+                          fontSize: 13, fontFamily: 'inherit',
+                          appearance: 'none', outline: 'none', cursor: 'pointer',
+                        }}
+                      >
+                        {loaderVersions.map(v => (
+                          <option key={v.version} value={v.version} style={{ background: '#1e2a4a' }}>
+                            {v.version}{v.stable ? '' : ' (bêta)'}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} color="var(--text-faint)" style={{
+                        position: 'absolute', right: 9, top: '50%',
+                        transform: 'translateY(-50%)', pointerEvents: 'none',
+                      }} />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -372,43 +433,14 @@ function CreateInstanceModal({
                 />
               </div>
 
-              {selectedLoader !== 'vanilla' && loaderVersions.length > 0 && (
-                <div>
-                  <label style={{
-                    fontSize: 12, fontWeight: 600, color: 'var(--text-muted)',
-                    textTransform: 'uppercase', letterSpacing: '0.07em',
-                    display: 'block', marginBottom: 7,
-                  }}>
-                    Version de {LOADERS.find(l => l.id === selectedLoader)?.label}
-                  </label>
-                  {loadingLoader ? (
-                    <Loader2 size={14} color="#60a5fa" style={{ animation: 'spin 1s linear infinite' }} />
-                  ) : (
-                    <div style={{ position: 'relative' }}>
-                      <select
-                        value={selectedLoaderVersion ?? ''}
-                        onChange={e => setSelectedLoaderVersion(e.target.value)}
-                        style={{
-                          width: '100%', padding: '8px 32px 8px 12px',
-                          background: 'rgba(255,255,255,0.07)',
-                          border: '1px solid rgba(255,255,255,0.12)',
-                          borderRadius: 10, color: 'var(--text-main)',
-                          fontSize: 13, fontFamily: 'inherit',
-                          appearance: 'none', outline: 'none', cursor: 'pointer',
-                        }}
-                      >
-                        {loaderVersions.map(v => (
-                          <option key={v.version} value={v.version} style={{ background: '#1e2a4a' }}>
-                            {v.version}{v.stable ? '' : ' (unstable)'}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={14} color="var(--text-faint)" style={{
-                        position: 'absolute', right: 10, top: '50%',
-                        transform: 'translateY(-50%)', pointerEvents: 'none',
-                      }} />
-                    </div>
-                  )}
+              {selectedLoader !== 'vanilla' && selectedLoaderVersion && (
+                <div style={{
+                  padding: '10px 14px', borderRadius: 10,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  fontSize: 12.5, color: 'var(--text-muted)',
+                }}>
+                  Version {LOADERS.find(l => l.id === selectedLoader)?.label} : <strong style={{ color: 'var(--text-main)' }}>{selectedLoaderVersion}</strong>
                 </div>
               )}
             </div>
@@ -464,6 +496,7 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const loaderColor = LOADER_COLOR[instance.loader]
   const loaderLabel = LOADERS.find(l => l.id === instance.loader)?.label ?? instance.loader
+  const navigate = useNavigate()
 
   return (
     <>
@@ -608,12 +641,15 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
         </div>
       )}
 
-      <div style={{
+      <div 
+      onClick={() => navigate(`/instances/${instance.id}`)}
+      style={{
         display: 'flex', alignItems: 'center', gap: 14,
         padding: '12px 14px', borderRadius: 12,
         background: isRunning ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.04)',
         border: `1px solid ${isRunning ? 'rgba(34,197,94,0.20)' : 'rgba(255,255,255,0.08)'}`,
         transition: 'all 0.15s',
+        cursor: 'pointer',
       }}>
         <div style={{ position: 'relative' }}>
           <div style={{
@@ -670,7 +706,7 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {isRunning ? (
-            <button onClick={() => setShowStopConfirm(true)} style={{
+            <button onClick={e => {e.stopPropagation(); setShowStopConfirm(true)}} style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '6px 14px', borderRadius: 9, fontSize: 12, fontWeight: 600,
               background: 'rgba(239,68,68,0.15)',
@@ -693,7 +729,7 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
           ) : (
             <button className="btn-primary"
               style={{ padding: '6px 14px', fontSize: 12, borderRadius: 9 }}
-              onClick={() => onLaunch(instance.id)}
+              onClick={e => {e.stopPropagation(); onLaunch(instance.id)}}
               disabled={launching}
             >
               {launching
