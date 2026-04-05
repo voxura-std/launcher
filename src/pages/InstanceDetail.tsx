@@ -3,12 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Play, Square, Trash2, Settings,
   Puzzle, Image, Palette, Save, AlertCircle,
-  Loader2, ChevronDown, FolderOpen, Clock,
+  Loader2, FolderOpen, Clock,
   Cpu, MemoryStick, Info, Terminal
 } from 'lucide-react'
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { useInstances, type Instance } from '../hooks/useInstances'
+import { useInstances } from '../hooks/useInstances'
 import { useOffline } from '../hooks/useOffline'
 import ModsManager from '../components/ModsManager'
 

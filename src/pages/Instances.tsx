@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  Plus, RefreshCw, SlidersHorizontal, LayoutGrid,
+  Plus, LayoutGrid,
   Layers, FolderPlus, Trash2, Play, Square,
   ChevronDown, ChevronLeft, ChevronRight, X, Check,
   Loader2, AlertCircle, Package
@@ -782,7 +782,7 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
 
 
 export default function Instances() {
-  const { instances, runningIds, createInstance, deleteInstance, stopInstance, reload } = useInstances()
+  const { instances, runningIds, createInstance, deleteInstance, stopInstance } = useInstances()
   const offline = useOffline()
   const [showModal, setShowModal] = useState(false)
   const [progress, setProgress]   = useState<Progress | null>(null)
