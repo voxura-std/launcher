@@ -122,7 +122,7 @@ pub async fn launch_instance(
         &game_dir,
     ));
 
-    let child = tokio::process::Command::new(&java_path)
+    let mut child = tokio::process::Command::new(&java_path)
         .args(&args)
         .current_dir(&instance_dir)
         .stdout(Stdio::piped())
@@ -147,19 +147,66 @@ pub async fn launch_instance(
     let running_clone = running.clone();
     let id_clone = instance_id.clone();
 
+    let start_time = std::time::Instant::now();
+
+    let stdout = child.stdout.take().expect("Failed to open stdout");
+    let stderr = child.stderr.take().expect("Failed to open stderr");
+
+    let id_stdout = id_clone.clone();
+    let app_stdout = app_clone.clone();
     tokio::spawn(async move {
-        match child.wait_with_output().await {
-            Ok(output) => {
+        use tokio::io::AsyncBufReadExt;
+        let mut reader = tokio::io::BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            let _ = app_stdout.emit("launcher://game-log", serde_json::json!({
+                "instance_id": id_stdout,
+                "log_type": "stdout",
+                "line": line
+            }));
+        }
+    });
+
+    let id_stderr = id_clone.clone();
+    let app_stderr = app_clone.clone();
+    tokio::spawn(async move {
+        use tokio::io::AsyncBufReadExt;
+        let mut reader = tokio::io::BufReader::new(stderr).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            let _ = app_stderr.emit("launcher://game-log", serde_json::json!({
+                "instance_id": id_stderr,
+                "log_type": "stderr",
+                "line": line
+            }));
+        }
+    });
+
+    tokio::spawn(async move {
+        match child.wait().await {
+            Ok(status) => {
                 running_clone.lock().unwrap().remove(&id_clone);
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let exit_code = output.status.code().unwrap_or(-1);
-                if exit_code != 0 {
-                    eprintln!(
-                        "[Game STDERR for {}]\n{}",
-                        id_clone,
-                        &stderr.chars().take(2000).collect::<String>()
-                    );
+                let exit_code = status.code().unwrap_or(-1);
+                
+                let elapsed = start_time.elapsed().as_secs();
+                let now = crate::instances::manager::unix_now();
+                
+                use tauri::Manager;
+                use tauri_plugin_store::StoreExt;
+
+                if let Err(e) = (|| -> Result<(), String> {
+                    let store = app_clone.store("instances.json").map_err(|e| e.to_string())?;
+                    let state = app_clone.state::<crate::InstancesState>();
+                    let mut list = state.0.lock().unwrap();
+                    if let Some(inst) = list.iter_mut().find(|i| i.id == id_clone) {
+                        inst.play_time += elapsed;
+                        inst.last_played = Some(now);
+                        store.set(format!("instance:{}", id_clone), serde_json::json!(inst));
+                        store.save().map_err(|e| e.to_string())?;
+                    }
+                    Ok(())
+                })() {
+                    eprintln!("Erreur màj temps de jeu : {}", e);
                 }
+
                 let _ = app_clone.emit(
                     "launcher://game-stopped",
                     serde_json::json!({

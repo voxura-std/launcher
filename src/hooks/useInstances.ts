@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 export interface Instance {
   id: string
   name: string
+  folder_name: string
   mc_version: string
   loader: 'vanilla' | 'fabric' | 'forge' | 'neoforge' | 'quilt'
   loader_version: string | null
@@ -13,6 +14,7 @@ export interface Instance {
   play_time: number
   java_args: string | null
   ram_mb: number
+  icon_path: string | null
 }
 
 export interface McVersion {

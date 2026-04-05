@@ -278,7 +278,41 @@ async fn update_instance(
     if let Some(pos) = list.iter().position(|i| i.id == instance.id) {
         list[pos] = instance;
     }
+
     Ok(())
+}
+
+#[tauri::command]
+async fn select_custom_icon(
+    instance_id: String,
+    app: tauri::AppHandle,
+    state: State<'_, InstancesState>,
+) -> Result<String, String> {
+    use tauri_plugin_dialog::DialogExt;
+    
+    let file_opt = app.dialog().file().add_filter("Image", &["png", "jpg", "jpeg", "webp"]).blocking_pick_file();
+    
+    if let Some(path) = file_opt {
+        let path_str = path.into_path().map_err(|e| e.to_string())?;
+
+        let dest_dir = download::get_game_dir(&app).join("instances");
+        let folder_name = {
+            let list = state.0.lock().unwrap();
+            if let Some(i) = list.iter().find(|i| i.id == instance_id) {
+                i.folder_name.clone()
+            } else {
+                return Err("Instance non trouvée".to_string());
+            }
+        };
+
+        let dest = dest_dir.join(&folder_name).join(format!("icon_{}.png", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()));
+
+        tokio::fs::copy(&path_str, &dest).await.map_err(|e| format!("Impossible de copier l'icône : {e}"))?;
+
+        Ok(dest.to_string_lossy().to_string())
+    } else {
+        Err("Aucune image sélectionnée".to_string())
+    }
 }
 
 #[tauri::command]
@@ -431,6 +465,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(AccountsState(Mutex::new(Vec::new())))
         .manage(InstancesState(Mutex::new(Vec::new())))
         .manage(RunningState(Arc::new(Mutex::new(
@@ -496,6 +531,11 @@ pub fn run() {
             get_running_instances,
             check_java,
             install_java_cmd,
+            select_custom_icon,
+            instances::addons::get_installed_addons,
+            instances::addons::toggle_addon,
+            instances::addons::delete_addon,
+            instances::addons::download_addon,
         ])
         .run(tauri::generate_context!())
         .expect("Erreur au démarrage de Tauri");

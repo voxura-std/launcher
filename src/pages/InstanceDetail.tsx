@@ -1,26 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Play, Square, Trash2, Settings,
   Puzzle, Image, Palette, Save, AlertCircle,
   Loader2, ChevronDown, FolderOpen, Clock,
-  Cpu, MemoryStick, Info
+  Cpu, MemoryStick, Info, Terminal
 } from 'lucide-react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useInstances, type Instance } from '../hooks/useInstances'
+import ModsManager from '../components/ModsManager'
 
-
-type Tab = 'overview' | 'mods' | 'resourcepacks' | 'shaders' | 'settings'
-
-const TABS: { id: Tab; icon: any; label: string }[] = [
-  { id: 'overview',      icon: Info,       label: 'Vue d\'ensemble' },
-  { id: 'mods',          icon: Puzzle,     label: 'Mods'            },
-  { id: 'resourcepacks', icon: Image,      label: 'Resource Packs'  },
-  { id: 'shaders',       icon: Palette,    label: 'Shaders'         },
-  { id: 'settings',      icon: Settings,   label: 'Paramètres'      },
-]
-
+type Tab = 'overview' | 'mods' | 'resourcepacks' | 'shaders' | 'settings' | 'logs'
 const LOADER_COLOR: Record<string, string> = {
   vanilla:  '#6b7280',
   fabric:   '#b5c3d4',
@@ -37,9 +28,18 @@ export default function InstanceDetail() {
 
   const instance  = instances.find(i => i.id === id)
   const isRunning = id ? runningIds.has(id) : false
-
   const [tab, setTab]           = useState<Tab>('overview')
   const [launching, setLaunching] = useState(false)
+  
+  const TABS: { id: Tab; icon: any; label: string }[] = [
+    { id: 'overview',      icon: Info,       label: 'Vue d\'ensemble' },
+    ...(instance?.loader !== 'vanilla' ? [{ id: 'mods' as Tab, icon: Puzzle, label: 'Mods' }] : []),
+    { id: 'resourcepacks', icon: Image,      label: 'Resource Packs'  },
+    ...(instance?.loader !== 'vanilla' ? [{ id: 'shaders' as Tab, icon: Palette, label: 'Shaders' }] : []),
+    { id: 'settings',      icon: Settings,   label: 'Paramètres'      },
+    { id: 'logs',          icon: Terminal,   label: 'Logs'            },
+  ]
+
   const [error, setError]       = useState<string | null>(null)
   const [saved, setSaved]       = useState(false)
   const [showStopConfirm, setShowStopConfirm]     = useState(false)
@@ -49,6 +49,9 @@ export default function InstanceDetail() {
   const [editRam, setEditRam]         = useState(2048)
   const [editJavaArgs, setEditJavaArgs] = useState('')
 
+  const [logs, setLogs] = useState<{ type: string, line: string }[]>([])
+  const logsEndRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (instance) {
       setEditName(instance.name)
@@ -56,6 +59,30 @@ export default function InstanceDetail() {
       setEditJavaArgs(instance.java_args ?? '')
     }
   }, [instance])
+
+  useEffect(() => {
+    let unlisten: () => void
+    listen('launcher://game-log', (event: any) => {
+        console.log("LOG EVENT:", event)
+        if (event.payload.instance_id === id) {
+            setLogs(prev => {
+                const newLogs = [...prev, { type: event.payload.log_type, line: event.payload.line }]
+                if (newLogs.length > 500) newLogs.shift()
+                return newLogs
+            })
+        }
+    }).then(f => unlisten = f)
+
+    return () => {
+        if (unlisten) unlisten()
+    }
+  }, [id])
+
+  useEffect(() => {
+      if (tab === 'logs' && logsEndRef.current) {
+          logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      }
+  }, [logs, tab])
 
   const handleLaunch = async () => {
     if (!id) return
@@ -158,9 +185,13 @@ export default function InstanceDetail() {
           border: `1px solid ${loaderColor}33`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 16, fontWeight: 800, color: loaderColor, fontFamily: 'monospace',
-          position: 'relative',
+          position: 'relative', overflow: 'hidden'
         }}>
-          {instance.name[0].toUpperCase()}
+          {instance.icon_path ? (
+              <img src={convertFileSrc(instance.icon_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+              <span>{instance.name.charAt(0).toUpperCase()}</span>
+          )}
           {isRunning && (
             <div style={{
               position: 'absolute', bottom: -3, right: -3,
@@ -295,27 +326,60 @@ export default function InstanceDetail() {
           </div>
         )}
 
-        {tab === 'mods' && (
-          <ComingSoon label="Gestion des mods" description="Ajoute et gère tes mods depuis Modrinth et CurseForge." />
+        {tab === 'mods' && instance.loader !== 'vanilla' && (
+          <ModsManager instance={instance} type="mods" isRunning={isRunning} />
         )}
 
         {tab === 'resourcepacks' && (
-          <ComingSoon label="Resource Packs" description="Installe des resource packs pour cette instance." />
+          <ModsManager instance={instance} type="resourcepacks" isRunning={isRunning} />
         )}
 
-        {tab === 'shaders' && (
-          <ComingSoon label="Shaders" description="Installe des shaders pour cette instance." />
+        {tab === 'shaders' && instance.loader !== 'vanilla' && (
+          <ModsManager instance={instance} type="shaders" isRunning={isRunning} />
         )}
 
         {tab === 'settings' && (
           <div style={{ padding: '18px', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 480 }}>
+            <div style={{ maxWidth: 600 }}>
 
               <SettingSection label="Nom de l'instance">
-                <input className="input" value={editName}
-                       onChange={e => setEditName(e.target.value)}
+                <input type="text" className="input-text"
+                       value={editName} onChange={e => setEditName(e.target.value)}
                        placeholder="Nom de l'instance" maxLength={64} />
               </SettingSection>
+
+              <div className="card" style={{ padding: 18, marginBottom: 14 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>
+                Apparence
+              </h3>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 64, height: 64, borderRadius: 16, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  {instance.icon_path ? (
+                     <img src={convertFileSrc(instance.icon_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                     <Image size={24} color="var(--text-muted)" />
+                  )}
+                </div>
+                <div>
+                   <button onClick={async () => {
+                      try {
+                         const newPath = await invoke<string>('select_custom_icon', { instanceId: instance.id })
+                         updateInstance({ ...instance, icon_path: newPath })
+                      } catch(e) {
+                         console.error(e)
+                      }
+                   }} style={{
+                      padding: '8px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer',
+                      fontSize: 13, fontWeight: 500
+                   }}>
+                      Changer l'icône
+                   </button>
+                   <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--text-faint)' }}>Formats: PNG, JPG, WEBP</p>
+                </div>
+              </div>
+            </div>
 
               <SettingSection label="RAM allouée"
                               hint={`${editRam} Mo — recommandé : 2048–4096 Mo`}>
@@ -369,6 +433,26 @@ export default function InstanceDetail() {
               </button>
             </div>
           </div>
+        )}
+
+        {tab === 'logs' && (
+           <div style={{ height: '100%', background: '#0a0a0a', padding: '14px 18px', overflowY: 'auto', boxSizing: 'border-box', fontFamily: 'var(--font-mono, monospace)', fontSize: 12, lineHeight: 1.5 }}>
+              {logs.length === 0 ? (
+                 <div style={{ color: 'var(--text-faint)', fontStyle: 'italic' }}>En attente de logs...</div>
+              ) : (
+                 logs.map((log, i) => {
+                    let color = '#d4d4d8'; // neutral
+                    if (log.type === 'stderr' || log.line.includes('ERROR') || log.line.includes('FATAL') || log.line.includes('Exception')) color = '#fca5a5';
+                    else if (log.line.includes('WARN')) color = '#fcd34d';
+                    else if (log.line.includes('INFO')) color = '#6ee7b7';
+
+                    return (
+                       <div key={i} style={{ color, wordBreak: 'break-all', marginBottom: 2 }}>{log.line}</div>
+                    )
+                 })
+              )}
+              <div ref={logsEndRef} />
+           </div>
         )}
       </div>
     </div>
@@ -430,34 +514,6 @@ function SettingSection({ label, hint, children }: {
   )
 }
 
-function ComingSoon({ label, description }: { label: string; description: string }) {
-  return (
-    <div style={{
-      height: '100%', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', flexDirection: 'column', gap: 10,
-    }}>
-      <div style={{
-        width: 52, height: 52, borderRadius: 15,
-        background: 'rgba(255,255,255,0.06)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Puzzle size={22} color="rgba(255,255,255,0.20)" strokeWidth={1.5} />
-      </div>
-      <p style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.30)' }}>{label}</p>
-      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.18)', textAlign: 'center', maxWidth: 280 }}>
-        {description}
-      </p>
-      <span style={{
-        fontSize: 11, fontWeight: 600, color: '#60a5fa',
-        padding: '3px 10px', borderRadius: 6,
-        background: 'rgba(59,130,246,0.12)',
-        border: '1px solid rgba(59,130,246,0.20)',
-      }}>
-        Bientôt disponible
-      </span>
-    </div>
-  )
-}
 
 function ConfirmModal({ title, message, warning, confirmLabel, confirmColor, onCancel, onConfirm }: {
   title: string; message: string; warning: string

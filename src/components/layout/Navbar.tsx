@@ -5,7 +5,6 @@ const navItems = [
   { to: '/',          icon: Zap,      label: 'Lancer'     },
   { to: '/instances', icon: Layers,   label: 'Instances'  },
   { to: '/accounts',  icon: User,     label: 'Comptes'    },
-  { to: '/search',    icon: Search,   label: 'Recherche'  },
   { to: '/settings',  icon: Settings, label: 'Paramètres' },
 ]
 
@@ -53,6 +52,3 @@ export default function Navbar() {
           <span>{label}</span>
         </NavLink>
       ))}
-    </nav>
-  )
-}

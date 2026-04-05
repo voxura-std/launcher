@@ -13,6 +13,7 @@ pub struct Instance {
     pub play_time: u64,
     pub java_args: Option<String>,
     pub ram_mb: u32,
+    pub icon_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, X, Check,
   Loader2, AlertCircle, Package
 } from 'lucide-react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useInstances, type Instance, type McVersion, type LoaderVersion } from '../hooks/useInstances'
 import { useNavigate } from 'react-router-dom'
@@ -602,8 +602,13 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
                 background: `${loaderColor}18`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 13, fontWeight: 800, color: loaderColor, fontFamily: 'monospace',
+                overflow: 'hidden'
               }}>
-                {instance.name[0].toUpperCase()}
+                {instance.icon_path ? (
+                    <img src={convertFileSrc(instance.icon_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                    <span>{instance.name.charAt(0).toUpperCase()}</span>
+                )}
               </div>
               <div>
                 <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
@@ -658,8 +663,13 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
             border: `1px solid ${loaderColor}33`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 14, fontWeight: 800, color: loaderColor, fontFamily: 'monospace',
+            overflow: 'hidden'
           }}>
-            {instance.name[0].toUpperCase()}
+            {instance.icon_path ? (
+                <img src={convertFileSrc(instance.icon_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+                <span>{instance.name.charAt(0).toUpperCase()}</span>
+            )}
           </div>
           {isRunning && (
             <div style={{

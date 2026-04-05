@@ -207,10 +207,11 @@ pub fn create_instance(
         play_time: 0,
         java_args: None,
         ram_mb: 2048,
+        icon_path: None,
     })
 }
 
-fn unix_now() -> u64 {
+pub fn unix_now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()

@@ -31,6 +31,8 @@ uuid = { version = "1", features = ["v4", "v3"] }
 url = "2"
 open = "5"
 sha1 = "0.10"
+hex = "0.4.3"
+tauri-plugin-dialog = "2.6.0"
 
 
 [profile.release]
