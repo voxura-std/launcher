@@ -29,12 +29,9 @@ export default function Accounts() {
     }}>
 
       <div>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 3 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-main)', marginBottom: 3 }}>
           Comptes
-        </h2>
-        <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-          Connecte-toi ou gère tes comptes
-        </p>
+        </h1>
       </div>
 
       {error && (

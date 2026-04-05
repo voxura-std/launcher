@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
+use serde::{Deserialize, Serialize};
 
 use super::download::get_game_dir;
 use super::java::find_java;
@@ -11,6 +12,24 @@ use crate::auth::types::Account;
 use crate::instances::types::Instance;
 
 pub type RunningProcesses = Arc<Mutex<HashMap<String, u32>>>;
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct GameResolution {
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct GlobalSettings {
+    #[serde(default)]
+    pub theme: String,
+    #[serde(default)]
+    pub launcher_behavior: String,
+    pub game_resolution: Option<GameResolution>,
+    pub ram_min: Option<u32>,
+    pub ram_max: Option<u32>,
+    pub custom_java_path: Option<String>,
+}
 
 pub async fn launch_instance(
     app: &AppHandle,
@@ -23,8 +42,30 @@ pub async fn launch_instance(
     let mc_version = &instance.mc_version;
 
     let version_id = get_version_id(instance, mc_version, &game_dir);
-
     let manifest = load_resolved_manifest(&game_dir, &version_id, mc_version).await?;
+
+    // Load Settings
+    let mut settings = GlobalSettings {
+        theme: "dark".to_string(),
+        launcher_behavior: "keep_open".to_string(),
+        game_resolution: None,
+        ram_min: Some(1024),
+        ram_max: Some(4096),
+        custom_java_path: None,
+    };
+
+    if let Ok(data_dir) = app.path().app_data_dir() {
+        let settings_path = data_dir.join("settings.json");
+        if let Ok(content) = std::fs::read_to_string(&settings_path) {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(global) = parsed.get("global_settings") {
+                    if let Ok(parsed_settings) = serde_json::from_value::<GlobalSettings>(global.clone()) {
+                        settings = parsed_settings;
+                    }
+                }
+            }
+        }
+    }
 
     let required_java = manifest
         .java_version
@@ -32,7 +73,9 @@ pub async fn launch_instance(
         .map(|j| j.major_version)
         .unwrap_or(21);
 
-    let java_path = if let Some((path, _)) = find_java(required_java) {
+    let java_path = if let Some(custom) = &settings.custom_java_path {
+        PathBuf::from(custom)
+    } else if let Some((path, _)) = find_java(required_java) {
         path
     } else {
         super::java::install_java(app, required_java).await
@@ -50,7 +93,8 @@ pub async fn launch_instance(
 
     let classpath = build_classpath(&game_dir, &version_id, &manifest)?;
 
-    let ram = instance.ram_mb;
+    let ram = if instance.ram_mb >= 512 { instance.ram_mb as u32 } else { settings.ram_max.unwrap_or(4096) };
+    let ram_min = settings.ram_min.unwrap_or(1024).min(ram);
     let sep = if cfg!(windows) { ";" } else { ":" };
 
     let replacements: std::collections::HashMap<&str, String> = [
@@ -69,6 +113,8 @@ pub async fn launch_instance(
         ("${version_name}", version_id.clone()),
         ("${java_net_preferIPv6Addresses}", "system".to_string()),
         ("${java_home}", java_path.to_string_lossy().to_string()),
+        ("${resolution_width}", settings.game_resolution.as_ref().map(|r| r.width.to_string()).unwrap_or("854".to_string())),
+        ("${resolution_height}", settings.game_resolution.as_ref().map(|r| r.height.to_string()).unwrap_or("480".to_string())),
     ]
     .into_iter()
     .collect();
@@ -76,7 +122,7 @@ pub async fn launch_instance(
     let mut args: Vec<String> = vec![
         "-XX:+IgnoreUnrecognizedVMOptions".to_string(),
         format!("-Xmx{ram}m"),
-        format!("-Xms{}m", (ram / 2).max(512)),
+        format!("-Xms{}m", ram_min),
         "-XX:+UseG1GC".to_string(),
         "-XX:+ParallelRefProcEnabled".to_string(),
         "-XX:MaxGCPauseMillis=200".to_string(),
@@ -120,14 +166,20 @@ pub async fn launch_instance(
         &asset_index_id,
         &instance_dir,
         &game_dir,
+        &settings,
     ));
 
-    let mut child = tokio::process::Command::new(&java_path)
-        .args(&args)
-        .current_dir(&instance_dir)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+    let mut cmd = tokio::process::Command::new(&java_path);
+    cmd.args(&args)
+       .current_dir(&instance_dir)
+       .stdout(Stdio::piped())
+       .stderr(Stdio::piped());
+
+    if settings.launcher_behavior == "close_game" {
+        cmd.kill_on_drop(true);
+    }
+
+    let mut child = cmd.spawn()
         .map_err(|e| format!("Impossible de lancer Java : {e}"))?;
 
     let pid = child.id().unwrap_or(0);
@@ -142,6 +194,12 @@ pub async fn launch_instance(
             "pid": pid,
         }),
     );
+
+    if settings.launcher_behavior == "close" {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.hide();
+        }
+    }
 
     let app_clone = app.clone();
     let running_clone = running.clone();
@@ -180,6 +238,7 @@ pub async fn launch_instance(
         }
     });
 
+    let settings_clone = settings.clone();
     tokio::spawn(async move {
         match child.wait().await {
             Ok(status) => {
@@ -207,6 +266,13 @@ pub async fn launch_instance(
                     eprintln!("Erreur màj temps de jeu : {}", e);
                 }
 
+                if settings_clone.launcher_behavior == "close" {
+                    if let Some(window) = app_clone.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+
                 let _ = app_clone.emit(
                     "launcher://game-stopped",
                     serde_json::json!({
@@ -217,6 +283,14 @@ pub async fn launch_instance(
             }
             Err(e) => {
                 running_clone.lock().unwrap().remove(&id_clone);
+
+                if settings_clone.launcher_behavior == "close" {
+                    if let Some(window) = app_clone.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+
                 let _ = app_clone.emit(
                     "launcher://game-error",
                     serde_json::json!({
@@ -518,7 +592,8 @@ fn build_game_args(
     version_id: &str,
     asset_index_id: &str,
     instance_dir: &Path,
-    game_dir: &PathBuf,
+    game_dir: &Path,
+    settings: &GlobalSettings,
 ) -> Vec<String> {
     let user_type = match account.kind {
         crate::auth::types::AccountKind::Microsoft => "msa",
@@ -541,8 +616,8 @@ fn build_game_args(
         ("${auth_access_token}", mc_token.to_string()),
         ("${user_type}", user_type.to_string()),
         ("${version_type}", "release".to_string()),
-        ("${resolution_width}", "854".to_string()),
-        ("${resolution_height}", "480".to_string()),
+        ("${resolution_width}", settings.game_resolution.as_ref().map(|r| r.width.to_string()).unwrap_or("854".to_string())),
+        ("${resolution_height}", settings.game_resolution.as_ref().map(|r| r.height.to_string()).unwrap_or("480".to_string())),
         ("${clientid}", "".to_string()),
         ("${auth_xuid}", "".to_string()),
     ]

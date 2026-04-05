@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Zap, Layers, User, Search, Settings, Pickaxe } from 'lucide-react'
+import { Zap, Layers, User, Settings, Pickaxe } from 'lucide-react'
 
 const navItems = [
   { to: '/',          icon: Zap,      label: 'Lancer'     },
@@ -52,3 +52,6 @@ export default function Navbar() {
           <span>{label}</span>
         </NavLink>
       ))}
+    </nav>
+  )
+}

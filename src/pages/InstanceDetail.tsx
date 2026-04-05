@@ -9,6 +9,7 @@ import {
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useInstances, type Instance } from '../hooks/useInstances'
+import { useOffline } from '../hooks/useOffline'
 import ModsManager from '../components/ModsManager'
 
 type Tab = 'overview' | 'mods' | 'resourcepacks' | 'shaders' | 'settings' | 'logs'
@@ -25,6 +26,7 @@ export default function InstanceDetail() {
   const { id }    = useParams<{ id: string }>()
   const navigate  = useNavigate()
   const { instances, updateInstance, deleteInstance, runningIds, stopInstance } = useInstances()
+  const offline = useOffline()
 
   const instance  = instances.find(i => i.id === id)
   const isRunning = id ? runningIds.has(id) : false
@@ -327,15 +329,15 @@ export default function InstanceDetail() {
         )}
 
         {tab === 'mods' && instance.loader !== 'vanilla' && (
-          <ModsManager instance={instance} type="mods" isRunning={isRunning} />
+          <ModsManager instance={instance!} type="mods" offline={offline} isRunning={isRunning} />
         )}
 
         {tab === 'resourcepacks' && (
-          <ModsManager instance={instance} type="resourcepacks" isRunning={isRunning} />
+          <ModsManager instance={instance!} type="resourcepacks" offline={offline} isRunning={isRunning} />
         )}
 
         {tab === 'shaders' && instance.loader !== 'vanilla' && (
-          <ModsManager instance={instance} type="shaders" isRunning={isRunning} />
+          <ModsManager instance={instance!} type="shaders" offline={offline} isRunning={isRunning} />
         )}
 
         {tab === 'settings' && (

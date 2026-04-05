@@ -1,6 +1,7 @@
 mod auth;
 mod instances;
 mod launcher;
+mod updater;
 
 use auth::{microsoft, offline, types::*};
 use instances::{
@@ -536,6 +537,9 @@ pub fn run() {
             instances::addons::toggle_addon,
             instances::addons::delete_addon,
             instances::addons::download_addon,
+            updater::check_updates,
+            updater::download_and_install_update,
+            updater::show_main_window,
         ])
         .run(tauri::generate_context!())
         .expect("Erreur au démarrage de Tauri");

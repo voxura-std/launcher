@@ -44,7 +44,7 @@ interface ModVersion {
   dependencies: { project_id?: string, dependency_type: string }[]
 }
 
-export default function ModsManager({ instance, type, isRunning }: { instance: Instance, type: AddonType, isRunning?: boolean }) {
+export default function ModsManager({ instance, type, isRunning, offline }: { instance: Instance, type: AddonType, isRunning?: boolean, offline?: boolean }) {
   const [activeTab, setActiveTab] = useState<'installed' | 'explore'>('installed')
 
   // Installed State
@@ -448,15 +448,17 @@ export default function ModsManager({ instance, type, isRunning }: { instance: I
           }}>{installed.length}</span>
         </button>
 
-        <button onClick={() => setActiveTab('explore')} style={{
-          padding: '8px 16px', borderBottom: activeTab === 'explore' ? '2px solid #60a5fa' : '2px solid transparent',
-          background: 'transparent', color: activeTab === 'explore' ? '#fff' : 'var(--text-faint)', 
-          fontWeight: 600, fontSize: 13, borderTop: 'none', borderLeft: 'none', borderRight: 'none',
-          cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 6,
-        }}>
-          <Search size={16} />
-          Explorer Modrinth
-        </button>
+        {!offline && (
+          <button onClick={() => setActiveTab('explore')} style={{
+            padding: '8px 16px', borderBottom: activeTab === 'explore' ? '2px solid #60a5fa' : '2px solid transparent',
+            background: 'transparent', color: activeTab === 'explore' ? '#fff' : 'var(--text-faint)', 
+            fontWeight: 600, fontSize: 13, borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+            cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 6
+          }}>
+            <Search size={16} />
+            Télécharger des {typeLabel}
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 18, boxSizing: 'border-box' }}>

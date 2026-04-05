@@ -12,6 +12,18 @@
   "app": {
     "windows": [
       {
+        "label": "splashscreen",
+        "title": "Chargement...",
+        "width": 400,
+        "height": 300,
+        "resizable": false,
+        "center": true,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true
+      },
+      {
+        "label": "main",
         "title": "Voxura Launcher",
         "width": 900,
         "height": 650,
@@ -19,7 +31,8 @@
         "minHeight": 580,
         "resizable": true,
         "center": true,
-        "decorations": true
+        "decorations": true,
+        "visible": false
       }
     ],
     "security": {

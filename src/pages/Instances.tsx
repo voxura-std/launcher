@@ -9,6 +9,7 @@ import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useInstances, type Instance, type McVersion, type LoaderVersion } from '../hooks/useInstances'
 import { useNavigate } from 'react-router-dom'
+import { useOffline } from '../hooks/useOffline'
 
 
 type LoaderType = 'vanilla' | 'fabric' | 'forge' | 'neoforge' | 'quilt'
@@ -782,6 +783,7 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
 
 export default function Instances() {
   const { instances, runningIds, createInstance, deleteInstance, stopInstance, reload } = useInstances()
+  const offline = useOffline()
   const [showModal, setShowModal] = useState(false)
   const [progress, setProgress]   = useState<Progress | null>(null)
   const [launching, setLaunching] = useState<string | null>(null)
@@ -880,19 +882,24 @@ export default function Instances() {
             )}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <button className="btn-ghost" style={{ padding: '5px 7px' }} onClick={reload}>
-              <RefreshCw size={13} strokeWidth={2} />
-            </button>
-            <button className="btn-ghost" style={{ padding: '5px 7px' }}>
-              <SlidersHorizontal size={13} strokeWidth={2} />
-            </button>
-            <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.10)', margin: '0 6px' }} />
             <button
               className="btn-primary"
-              style={{ padding: '5px 13px', fontSize: 12, borderRadius: 9 }}
-              onClick={() => setShowModal(true)}
+              style={{ 
+                 padding: '5px 13px', fontSize: 12, borderRadius: 9,
+                 background: offline ? 'rgba(255,255,255,0.1)' : 'var(--primary)',
+                 cursor: offline ? 'not-allowed' : 'pointer',
+                 opacity: offline ? 0.6 : 1
+              }}
+              onClick={() => {
+                 if (offline) {
+                    alert("Création d'instance indisponible en mode hors-ligne.")
+                 } else {
+                    setShowModal(true)
+                 }
+              }}
+              title={offline ? "Non disponible sans internet" : "Créer une instance"}
             >
-              <Plus size={12} /> Ajouter et importer
+              <Plus size={12} /> Ajouter
             </button>
           </div>
         </div>
@@ -914,12 +921,23 @@ export default function Instances() {
                 Aucune instance
               </p>
               <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.18)' }}>
-                Clique sur "Ajouter et importer" pour commencer
+                Cliquer sur "Ajouter" pour commencer
               </p>
               <button
                 className="btn-primary"
-                style={{ marginTop: 6, padding: '8px 20px', fontSize: 13 }}
-                onClick={() => setShowModal(true)}
+                style={{ 
+                   marginTop: 6, padding: '8px 20px', fontSize: 13,
+                   background: offline ? 'rgba(255,255,255,0.1)' : 'var(--primary)',
+                   cursor: offline ? 'not-allowed' : 'pointer',
+                   opacity: offline ? 0.6 : 1
+                }}
+                onClick={() => {
+                   if (offline) {
+                      alert("Création d'instance indisponible en mode hors-ligne.")
+                   } else {
+                      setShowModal(true)
+                   }
+                }}
               >
                 <Plus size={14} /> Créer une instance
               </button>

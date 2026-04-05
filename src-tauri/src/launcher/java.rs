@@ -1,15 +1,14 @@
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use tauri::{AppHandle, Emitter};
-use serde::Serialize;
+use tauri::AppHandle;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct JavaInfo {
-    pub path:    String,
+    pub path: String,
     pub version: u32,
-    pub found:   bool,
+    pub found: bool,
 }
-
 
 pub fn find_java(required_version: u32) -> Option<(PathBuf, u32)> {
     let candidates = get_java_candidates();
@@ -32,14 +31,14 @@ pub fn find_java(required_version: u32) -> Option<(PathBuf, u32)> {
 pub fn get_java_info(required_version: u32) -> JavaInfo {
     match find_java(required_version) {
         Some((path, version)) => JavaInfo {
-            path:    path.to_string_lossy().to_string(),
+            path: path.to_string_lossy().to_string(),
             version,
-            found:   true,
+            found: true,
         },
         None => JavaInfo {
-            path:    String::new(),
+            path: String::new(),
             version: 0,
-            found:   false,
+            found: false,
         },
     }
 }
@@ -49,14 +48,18 @@ fn get_java_candidates() -> Vec<PathBuf> {
 
     if let Ok(java_home) = std::env::var("JAVA_HOME") {
         let bin = java_bin_path(&PathBuf::from(java_home));
-        if bin.exists() { candidates.push(bin); }
+        if bin.exists() {
+            candidates.push(bin);
+        }
     }
 
     if let Some(launcher_javas) = get_launcher_java_dir() {
         if let Ok(entries) = std::fs::read_dir(&launcher_javas) {
             for entry in entries.flatten() {
                 let bin = java_bin_path(&entry.path());
-                if bin.exists() { candidates.push(bin); }
+                if bin.exists() {
+                    candidates.push(bin);
+                }
             }
         }
     }
@@ -74,7 +77,9 @@ fn get_java_candidates() -> Vec<PathBuf> {
             if let Ok(entries) = std::fs::read_dir(base) {
                 for entry in entries.flatten() {
                     let bin = entry.path().join("bin").join("java.exe");
-                    if bin.exists() { candidates.push(bin); }
+                    if bin.exists() {
+                        candidates.push(bin);
+                    }
                 }
             }
         }
@@ -89,12 +94,16 @@ fn get_java_candidates() -> Vec<PathBuf> {
         ];
         for p in &paths {
             let pb = PathBuf::from(p);
-            if pb.exists() { candidates.push(pb); }
+            if pb.exists() {
+                candidates.push(pb);
+            }
         }
         if let Ok(entries) = std::fs::read_dir("/usr/lib/jvm") {
             for entry in entries.flatten() {
                 let bin = entry.path().join("bin").join("java");
-                if bin.exists() { candidates.push(bin); }
+                if bin.exists() {
+                    candidates.push(bin);
+                }
             }
         }
     }
@@ -111,10 +120,7 @@ fn java_bin_path(base: &Path) -> PathBuf {
 }
 
 pub fn get_java_version(java_path: &Path) -> Option<u32> {
-    let output = Command::new(java_path)
-        .arg("-version")
-        .output()
-        .ok()?;
+    let output = Command::new(java_path).arg("-version").output().ok()?;
 
     let text = String::from_utf8_lossy(&output.stderr);
     let line = text.lines().next()?;
@@ -127,7 +133,6 @@ pub fn get_java_version(java_path: &Path) -> Option<u32> {
     }
 }
 
-
 pub fn get_launcher_java_dir() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     {
@@ -137,8 +142,7 @@ pub fn get_launcher_java_dir() -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
         let home = std::env::var("HOME").ok()?;
-        Some(PathBuf::from(home)
-            .join("Library/Application Support/voxura-launcher/java"))
+        Some(PathBuf::from(home).join("Library/Application Support/voxura-launcher/java"))
     }
     #[cfg(target_os = "linux")]
     {
@@ -147,12 +151,9 @@ pub fn get_launcher_java_dir() -> Option<PathBuf> {
     }
 }
 
-pub async fn install_java(
-    app: &AppHandle,
-    major_version: u32,
-) -> Result<PathBuf, String> {
-    let java_dir = get_launcher_java_dir()
-        .ok_or("Impossible de déterminer le répertoire d'installation")?;
+pub async fn install_java(_app: &AppHandle, major_version: u32) -> Result<PathBuf, String> {
+    let java_dir =
+        get_launcher_java_dir().ok_or("Impossible de déterminer le répertoire d'installation")?;
 
     let install_dir = java_dir.join(format!("jdk-{major_version}"));
 
@@ -165,16 +166,25 @@ pub async fn install_java(
         }
     }
 
-    tokio::fs::create_dir_all(&install_dir).await
+    tokio::fs::create_dir_all(&install_dir)
+        .await
         .map_err(|e| format!("Impossible de créer le dossier Java : {e}"))?;
 
-    let os = if cfg!(target_os = "windows") { "windows" }
-             else if cfg!(target_os = "macos") { "mac" }
-             else { "linux" };
+    let os = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "mac"
+    } else {
+        "linux"
+    };
 
-    let arch = if cfg!(target_arch = "x86_64") { "x64" }
-               else if cfg!(target_arch = "aarch64") { "aarch64" }
-               else { "x64" };
+    let arch = if cfg!(target_arch = "x86_64") {
+        "x64"
+    } else if cfg!(target_arch = "aarch64") {
+        "aarch64"
+    } else {
+        "x64"
+    };
 
     let image_type = "jre";
 
@@ -184,10 +194,13 @@ pub async fn install_java(
     );
 
     let client = reqwest::Client::new();
-    let meta: serde_json::Value = client.get(&api_url)
-        .send().await
+    let meta: serde_json::Value = client
+        .get(&api_url)
+        .send()
+        .await
         .map_err(|e| format!("Erreur API Adoptium : {e}"))?
-        .json().await
+        .json()
+        .await
         .map_err(|e| format!("Réponse Adoptium invalide : {e}"))?;
 
     let download_url = meta[0]["binary"]["package"]["link"]
@@ -200,22 +213,26 @@ pub async fn install_java(
         .unwrap_or("java.archive")
         .to_string();
 
-    let bytes = client.get(&download_url)
-        .send().await
+    let bytes = client
+        .get(&download_url)
+        .send()
+        .await
         .map_err(|e| format!("Erreur téléchargement Java : {e}"))?
-        .bytes().await
+        .bytes()
+        .await
         .map_err(|e| format!("Lecture archive Java : {e}"))?;
 
     let archive_path = install_dir.join(&filename);
-    tokio::fs::write(&archive_path, &bytes).await
+    tokio::fs::write(&archive_path, &bytes)
+        .await
         .map_err(|e| format!("Écriture archive : {e}"))?;
 
     extract_java_archive(&archive_path, &install_dir)?;
 
     let _ = tokio::fs::remove_file(&archive_path).await;
 
-    let java_bin = find_java_binary_in_dir(&install_dir)
-        .ok_or("Binaire java introuvable après extraction")?;
+    let java_bin =
+        find_java_binary_in_dir(&install_dir).ok_or("Binaire java introuvable après extraction")?;
 
     Ok(java_bin)
 }
@@ -223,10 +240,9 @@ pub async fn install_java(
 fn extract_java_archive(archive: &Path, dest: &Path) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        let file = std::fs::File::open(archive)
-            .map_err(|e| format!("Ouverture archive : {e}"))?;
-        let mut zip = zip::ZipArchive::new(file)
-            .map_err(|e| format!("Archive ZIP invalide : {e}"))?;
+        let file = std::fs::File::open(archive).map_err(|e| format!("Ouverture archive : {e}"))?;
+        let mut zip =
+            zip::ZipArchive::new(file).map_err(|e| format!("Archive ZIP invalide : {e}"))?;
         zip.extract(dest)
             .map_err(|e| format!("Extraction ZIP : {e}"))?;
     }
@@ -234,7 +250,12 @@ fn extract_java_archive(archive: &Path, dest: &Path) -> Result<(), String> {
     #[cfg(not(target_os = "windows"))]
     {
         let status = Command::new("tar")
-            .args(["-xzf", &archive.to_string_lossy(), "-C", &dest.to_string_lossy()])
+            .args([
+                "-xzf",
+                &archive.to_string_lossy(),
+                "-C",
+                &dest.to_string_lossy(),
+            ])
             .status()
             .map_err(|e| format!("Extraction tar : {e}"))?;
 
@@ -243,7 +264,9 @@ fn extract_java_archive(archive: &Path, dest: &Path) -> Result<(), String> {
         }
 
         if let Some(bin) = find_java_binary_in_dir(dest) {
-            let _ = Command::new("chmod").args(["+x", &bin.to_string_lossy()]).status();
+            let _ = Command::new("chmod")
+                .args(["+x", &bin.to_string_lossy()])
+                .status();
         }
     }
 
