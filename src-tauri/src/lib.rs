@@ -541,6 +541,35 @@ pub fn run() {
             updater::download_and_install_update,
             updater::show_main_window,
         ])
-        .run(tauri::generate_context!())
-        .expect("Erreur au démarrage de Tauri");
+        .build(tauri::generate_context!())
+        .expect("Erreur au démarrage de Tauri")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                let mut close_game = false;
+                if let Ok(data_dir) = app_handle.path().app_data_dir() {
+                    let settings_path = data_dir.join("settings.json");
+                    if let Ok(content) = std::fs::read_to_string(&settings_path) {
+                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let Some(global) = parsed.get("global_settings") {
+                                if let Some(behave) = global.get("launcher_behavior") {
+                                    if behave.as_str() == Some("close_game") {
+                                        close_game = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if close_game {
+                    let state = app_handle.state::<RunningState>();
+                    for (_, pid) in state.0.lock().unwrap().iter() {
+                        #[cfg(windows)]
+                        std::process::Command::new("taskkill").args(["/F", "/T", "/PID", &pid.to_string()]).spawn().ok();
+                        #[cfg(not(windows))]
+                        std::process::Command::new("kill").args(["-9", &pid.to_string()]).spawn().ok();
+                    }
+                }
+            }
+        });
 }

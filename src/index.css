@@ -1,21 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --primary:        #3b82f6;
-  --primary-hover:  #2563eb;
+  --primary:        #4ade80;
+  --primary-hover:  #22c55e;
+  --primary-grad:   linear-gradient(90deg, #4ade80, #facc15);
   --text-main:      rgba(255, 255, 255, 0.92);
   --text-muted:     rgba(255, 255, 255, 0.55);
   --text-faint:     rgba(255, 255, 255, 0.30);
   --surface:        rgba(255, 255, 255, 0.06);
   --surface-hover:  rgba(255, 255, 255, 0.10);
   --border:         rgba(255, 255, 255, 0.10);
-  --bg-color:       #0f172a;
+  --bg-color:       #0f1e16f5;
   --bg-image:       url('/bg-dark.png');
 }
 
 .theme-light {
-  --primary:        #2563eb;
-  --primary-hover:  #1d4ed8;
+  --primary:        #34d399;
+  --primary-hover:  #10b981;
+  --primary-grad:   linear-gradient(90deg, #34d399, #fbbf24);
   --text-main:      rgba(15, 23, 42, 0.95);
   --text-muted:     rgba(15, 23, 42, 0.65);
   --text-faint:     rgba(15, 23, 42, 0.40);
@@ -53,15 +55,16 @@ html, body {
 
 .btn-primary {
   display: inline-flex; align-items: center; gap: 6px;
-  background: var(--primary); color: #fff;
-  font-family: inherit; font-weight: 600; font-size: 13px;
+  background: var(--primary-grad); color: #022c22;
+  font-family: inherit; font-weight: 700; font-size: 13px;
   padding: 7px 16px; border-radius: 10px;
   border: none; cursor: pointer; outline: none;
-  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
-  box-shadow: 0 2px 10px rgba(59,130,246,0.35);
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s, filter 0.15s;
+  box-shadow: 0 2px 10px rgba(74, 222, 128, 0.35);
 }
-.btn-primary:hover  { background: var(--primary-hover); box-shadow: 0 4px 16px rgba(59,130,246,0.45); }
+.btn-primary:hover  { box-shadow: 0 4px 16px rgba(74, 222, 128, 0.55); filter: brightness(1.05); }
 .btn-primary:active { transform: scale(0.97); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 
 .btn-ghost {
   display: inline-flex; align-items: center; gap: 6px;
@@ -84,8 +87,8 @@ html, body {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .input:focus {
-  border-color: rgba(59,130,246,0.60);
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+  border-color: rgba(74,222,128,0.60);
+  box-shadow: 0 0 0 3px rgba(74,222,128,0.15);
 }
 .input::placeholder { color: var(--text-faint); }
 

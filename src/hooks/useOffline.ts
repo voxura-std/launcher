@@ -17,7 +17,6 @@ export function useOffline() {
   return offline
 }
 
-// Attach listener once
 if (typeof window !== 'undefined') {
   listen<boolean>('launcher://offline-status', (event) => {
     globalOffline = event.payload

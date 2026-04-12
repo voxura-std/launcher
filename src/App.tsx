@@ -9,15 +9,27 @@ import InstanceDetail from './pages/InstanceDetail'
 import Accounts       from './pages/Accounts'
 import Settings       from './pages/Settings'
 import Splash         from './pages/Splash'
+import { useSettings } from './hooks/useSettings'
 
 export default function App() {
   const [isSplash, setIsSplash] = useState(false)
+  const { settings, ready } = useSettings()
 
   useEffect(() => {
     if (getCurrentWindow().label === 'splashscreen') {
       setIsSplash(true)
     }
+    
+    const blockMenu = (e: Event) => e.preventDefault()
+    document.addEventListener('contextmenu', blockMenu)
+    return () => document.removeEventListener('contextmenu', blockMenu)
   }, [])
+
+  useEffect(() => {
+    if (ready && settings) {
+      document.body.className = settings.theme === 'light' ? 'theme-light' : 'theme-dark'
+    }
+  }, [settings?.theme, ready])
 
   if (isSplash) {
     return <Splash />

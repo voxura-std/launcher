@@ -7,7 +7,6 @@ export default function Splash() {
 
   useEffect(() => {
     async function initSplash() {
-      // Small artificial delay to show the "Recherche"
       await new Promise(r => setTimeout(r, 1000))
       
       try {
@@ -20,9 +19,8 @@ export default function Splash() {
         } else if (updateResult.status === 'update_available') {
           setStatus('Mise à jour requise. Téléchargement...')
           await invoke('download_and_install_update')
-          // If it successfully unzipped and batched, the app will kill itself anyway
         } else {
-          setStatus('A jour. Démarrage...')
+          setStatus('Démarrage...')
           await new Promise(r => setTimeout(r, 1000))
           await invoke('show_main_window', { offline: false })
         }
@@ -32,9 +30,7 @@ export default function Splash() {
         await invoke('show_main_window', { offline: true })
       }
     }
-    
-    // We only want this once. But React StrictMode runs this twice, 
-    // so we handle it gracefully. We can just execute it.
+
     initSplash()
   }, [])
 
@@ -43,18 +39,14 @@ export default function Splash() {
       width: '100vw', height: '100vh',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg-color, #0f172a)',
+      background: 'var(--bg-color, #0f1e16f5)',
       color: 'var(--text-main, white)',
       fontFamily: 'inherit'
     }}>
-        <div style={{
-           width: 100, height: 100, borderRadius: 20, 
-           background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', 
-           display: 'flex', alignItems: 'center', justifyContent: 'center',
-           marginBottom: 40, boxShadow: '0 8px 30px rgba(59,130,246,0.3)'
-        }}>
-           <span style={{ color: '#fff', fontWeight: 900, fontSize: 36 }}>VX</span>
-        </div>
+        <img src="/logo.png" alt="Voxura Logo" style={{
+           width: 100, height: 100, borderRadius: 20, objectFit: 'contain',
+           marginBottom: 40
+        }} />
         <h2 style={{ fontSize: 16, fontWeight: 600 }}>{status}</h2>
     </div>
   )

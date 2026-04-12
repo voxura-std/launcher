@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Zap, Layers, User, Settings, Pickaxe } from 'lucide-react'
+import { Zap, Layers, User, Settings } from 'lucide-react'
 
 const navItems = [
   { to: '/',          icon: Zap,      label: 'Lancer'     },
@@ -16,14 +16,7 @@ export default function Navbar() {
     }}>
 
       <div style={{ display:'flex', alignItems:'center', gap:8, marginRight:10, flexShrink:0 }}>
-        <div style={{
-          width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-          background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 10px rgba(59,130,246,0.45)',
-        }}>
-          <Pickaxe size={15} color="#fff" strokeWidth={2.2} />
-        </div>
+        <img src="/logo.png" alt="Voxura Logo" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'contain' }} />
         <span style={{
           fontWeight: 800, fontSize: 12.5, letterSpacing: '0.09em',
           color: 'rgba(255,255,255,0.90)',
@@ -44,9 +37,9 @@ export default function Navbar() {
           fontSize: 13, fontWeight: isActive ? 600 : 500,
           textDecoration: 'none', cursor: 'pointer',
           whiteSpace: 'nowrap', transition: 'all 0.15s',
-          background:  isActive ? '#3b82f6' : 'transparent',
-          color:       isActive ? '#fff' : 'rgba(255,255,255,0.55)',
-          boxShadow:   isActive ? '0 2px 10px rgba(59,130,246,0.40)' : 'none',
+          background:  isActive ? 'var(--primary-grad)' : 'transparent',
+          color:       isActive ? '#022c22' : 'rgba(255,255,255,0.55)',
+          boxShadow:   isActive ? '0 2px 10px rgba(74, 222, 128, 0.40)' : 'none',
         })}>
           <Icon size={14} strokeWidth={2.2} />
           <span>{label}</span>

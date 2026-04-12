@@ -47,19 +47,15 @@ interface ModVersion {
 export default function ModsManager({ instance, type, isRunning, offline }: { instance: Instance, type: AddonType, isRunning?: boolean, offline?: boolean }) {
   const [activeTab, setActiveTab] = useState<'installed' | 'explore'>('installed')
 
-  // Installed State
   const [installed, setInstalled] = useState<InstalledAddon[]>([])
   const [loadingInstalled, setLoadingInstalled] = useState(true)
 
-  // Explore State
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<ModrinthHit[]>([])
   const [loadingSearch, setLoadingSearch] = useState(false)
-  
-  // Tasks state
+
   const [tasks, setTasks] = useState<Record<string, 'loading' | 'success' | 'error'>>({})
-  
-  // Dependencies Modal State
+
   const [pendingInstall, setPendingInstall] = useState<{
     project: ModrinthHit,
     versionsToInstall: ModVersion[],
@@ -67,14 +63,12 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
   } | null>(null)
   const [installing, setInstalling] = useState(false)
 
-  // Delete Modal State
   const [fileToDelete, setFileToDelete] = useState<{ filename: string, modrinthName?: string } | null>(null)
 
   const typeLabel = type === 'mods' ? 'Mods' : type === 'resourcepacks' ? 'Resource Packs' : 'Shaders'
   const iconProps = { size: 16 }
   const TypeIcon = type === 'mods' ? <Puzzle {...iconProps} /> : type === 'resourcepacks' ? <Image {...iconProps} /> : <Palette {...iconProps} />
 
-  // Restriction
   const preventInstall = isRunning && type === 'mods'
   const preventManage = isRunning
 
@@ -90,7 +84,6 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
         addonType: type
       })
 
-      // Try resolving hashes with Modrinth
       const itemsWithMeta: InstalledAddon[] = [...items]
       const hashes = items.map(i => i.hash).filter(h => h && h.length > 0)
       
@@ -107,15 +100,13 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
             for (const key in hashToVersionInfo) {
                projectIds.add(hashToVersionInfo[key].project_id)
             }
-            
-            // Fetch Project info
+
             if (projectIds.size > 0) {
                const pRes = await fetch(`https://api.modrinth.com/v2/projects?ids=${encodeURIComponent(JSON.stringify(Array.from(projectIds)))}`)
                if (pRes.ok) {
                   const projects: ModrinthProject[] = await pRes.json()
                   const idToProject = new Map(projects.map(p => [p.id, p]))
 
-                  // Map them back
                   for (let i = 0; i < itemsWithMeta.length; i++) {
                      const itemHash = itemsWithMeta[i].hash
                      if (hashToVersionInfo[itemHash]) {
@@ -213,7 +204,6 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
     }
   }
 
-  // --- Dependency Resolution ---
   const fetchDependencyTree = async (projectId: string, loaderParam: string, depsMap = new Map<string, ModVersion>(), installedSet: Set<string>): Promise<Map<string, ModVersion>> => {
       if (depsMap.has(projectId) || installedSet.has(projectId)) return depsMap;
 
@@ -231,7 +221,6 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
       const requiredDeps = version.dependencies?.filter((d: any) => d.dependency_type === 'required') || []
       for (const dep of requiredDeps) {
         if (dep.project_id && !depsMap.has(dep.project_id) && !installedSet.has(dep.project_id)) {
-           // For dependencies we assume mods
            const depLoaderParam = type === 'mods' ? `["${instance.loader}"]` : `[]`
            await fetchDependencyTree(dep.project_id, depLoaderParam, depsMap, installedSet)
         }
@@ -244,7 +233,6 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
     setTasks(prev => ({ ...prev, [project.project_id]: 'loading' }))
     
     try {
-      // Build installed set
       const installedSet = new Set<string>()
       installed.forEach(i => {
         if (i.modrinthData) installedSet.add(i.modrinthData.id)
@@ -254,13 +242,11 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
       const depsMap = await fetchDependencyTree(project.project_id, loaderParam, new Map(), installedSet)
 
       const allVersions = Array.from(depsMap.values())
-      
-      // Fetch details to show nice names in prompt
+
       const pRes = await fetch(`https://api.modrinth.com/v2/projects?ids=${encodeURIComponent(JSON.stringify(Array.from(depsMap.keys())))}`)
       const projectDetails: ModrinthProject[] = await pRes.json()
 
       if (allVersions.length > 1) {
-          // Has dependencies -> prompt
           setPendingInstall({
              project,
              versionsToInstall: allVersions,
@@ -272,7 +258,6 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
              return copy
           })
       } else {
-          // No dependencies -> install immediately
           await executeInstall(allVersions)
           setTasks(prev => ({ ...prev, [project.project_id]: 'success' }))
       }
@@ -304,13 +289,10 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
   }
 
   const executeInstall = async (versions: ModVersion[]) => {
-      // Install all sequentially to avoid overloading Tauri
       for (const version of versions) {
          const file = version.files.find((f: any) => f.primary) || version.files[0]
          if (!file) throw new Error(`Fichier introuvable pour la version ${version.id}`)
 
-         // Usually dependencies are mods. If we started from resourceback but a dep is a mod, we should dynamically detect it.
-         // However Modrinth strictly separates types. We'll just stick to the current addonType.
          await invoke('download_addon', {
            instanceId: instance.id,
            addonType: type,
@@ -323,15 +305,14 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* DELETE PROMPT MODAL */}
+
       {fileToDelete && (
          <div style={{
             position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
          }}>
             <div style={{
-               background: 'rgba(15,25,50,0.97)', border: '1px solid rgba(239,68,68,0.25)',
+               background: 'rgba(15, 30, 22,0.97)', border: '1px solid rgba(239,68,68,0.25)',
                padding: 24, borderRadius: 16, width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.6)'
             }}>
                <div style={{
@@ -363,14 +344,13 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
          </div>
       )}
 
-      {/* DEPENDENCY PROMPT MODAL */}
       {pendingInstall && (
          <div style={{
             position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.7)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
          }}>
             <div style={{
-               background: 'rgba(15,25,50,0.97)', border: '1px solid rgba(255,255,255,0.1)',
+               background: 'rgba(15, 30, 22,0.97)', border: '1px solid rgba(255,255,255,0.1)',
                padding: 24, borderRadius: 16, width: 440, boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
             }}>
                <h3 style={{ margin: 0, fontSize: 18, color: 'var(--text-main)', marginBottom: 8 }}>
@@ -429,13 +409,12 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
          </div>
       )}
 
-      {/* Header Tabs */}
       <div style={{
         display: 'flex', gap: 10, padding: '18px 18px 0', borderBottom: '1px solid rgba(255,255,255,0.05)',
         flexShrink: 0
       }}>
         <button onClick={() => setActiveTab('installed')} style={{
-          padding: '8px 16px', borderBottom: activeTab === 'installed' ? '2px solid #60a5fa' : '2px solid transparent',
+          padding: '8px 16px', borderBottom: activeTab === 'installed' ? '2px solid #4ade80' : '2px solid transparent',
           background: 'transparent', color: activeTab === 'installed' ? '#fff' : 'var(--text-faint)', 
           fontWeight: 600, fontSize: 13, borderTop: 'none', borderLeft: 'none', borderRight: 'none',
           cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 6,
@@ -450,7 +429,7 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
 
         {!offline && (
           <button onClick={() => setActiveTab('explore')} style={{
-            padding: '8px 16px', borderBottom: activeTab === 'explore' ? '2px solid #60a5fa' : '2px solid transparent',
+            padding: '8px 16px', borderBottom: activeTab === 'explore' ? '2px solid #4ade80' : '2px solid transparent',
             background: 'transparent', color: activeTab === 'explore' ? '#fff' : 'var(--text-faint)', 
             fontWeight: 600, fontSize: 13, borderTop: 'none', borderLeft: 'none', borderRight: 'none',
             cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 6
@@ -462,8 +441,7 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 18, boxSizing: 'border-box' }}>
-        
-        {/* INSTALLED TAB */}
+
         {activeTab === 'installed' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             
@@ -494,7 +472,6 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
                   background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
                   opacity: file.disabled ? 0.5 : 1, transition: 'all 0.2s', gap: 14
                 }}>
-                  {/* Icon */}
                   {file.modrinthData?.icon_url ? (
                      <img src={file.modrinthData.icon_url} style={{ width: 36, height: 36, borderRadius: 8, opacity: file.disabled ? 0.6 : 1 }} />
                   ) : (
@@ -540,7 +517,6 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
           </div>
         )}
 
-        {/* EXPLORE TAB */}
         {activeTab === 'explore' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {preventInstall && (
@@ -594,7 +570,7 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
                                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {hit.title}
                     </p>
-                    <p style={{ fontSize: 11, color: '#60a5fa', marginBottom: 6 }}>
+                    <p style={{ fontSize: 11, color: '#4ade80', marginBottom: 6 }}>
                       par {hit.author}
                     </p>
                     <p style={{ fontSize: 11.5, color: 'var(--text-faint)', 
@@ -620,7 +596,7 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
                       ) : (
                         <button onClick={() => initiateInstall(hit)} disabled={tasks[hit.project_id] === 'loading' || preventInstall} style={{
                           padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: preventInstall ? 'not-allowed' : 'pointer',
-                          background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: 'none',
+                          background: 'rgba(74, 222, 128, 0.15)', color: '#4ade80', border: 'none',
                           display: 'flex', alignItems: 'center', gap: 4, transition: 'all 0.1s'
                         }}>
                           {tasks[hit.project_id] === 'loading'

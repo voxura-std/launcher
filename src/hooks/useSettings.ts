@@ -52,7 +52,6 @@ export function useSettings() {
     }
   }
 
-  // Effect to apply theme globally on the document
   useEffect(() => {
     if (settings.theme === 'light') {
       document.body.classList.add('theme-light')

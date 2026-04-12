@@ -1,9 +1,12 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
-use serde::{Deserialize, Serialize};
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 use super::download::get_game_dir;
 use super::java::find_java;
@@ -44,7 +47,6 @@ pub async fn launch_instance(
     let version_id = get_version_id(instance, mc_version, &game_dir);
     let manifest = load_resolved_manifest(&game_dir, &version_id, mc_version).await?;
 
-    // Load Settings
     let mut settings = GlobalSettings {
         theme: "dark".to_string(),
         launcher_behavior: "keep_open".to_string(),
@@ -59,7 +61,9 @@ pub async fn launch_instance(
         if let Ok(content) = std::fs::read_to_string(&settings_path) {
             if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content) {
                 if let Some(global) = parsed.get("global_settings") {
-                    if let Ok(parsed_settings) = serde_json::from_value::<GlobalSettings>(global.clone()) {
+                    if let Ok(parsed_settings) =
+                        serde_json::from_value::<GlobalSettings>(global.clone())
+                    {
                         settings = parsed_settings;
                     }
                 }
@@ -74,7 +78,7 @@ pub async fn launch_instance(
         .unwrap_or(21);
 
     let java_path = if let Some(custom) = &settings.custom_java_path {
-        PathBuf::from(custom)
+        PathBuf::from(custom.replace("\"", ""))
     } else if let Some((path, _)) = find_java(required_java) {
         path
     } else {
@@ -93,7 +97,11 @@ pub async fn launch_instance(
 
     let classpath = build_classpath(&game_dir, &version_id, &manifest)?;
 
-    let ram = if instance.ram_mb >= 512 { instance.ram_mb as u32 } else { settings.ram_max.unwrap_or(4096) };
+    let ram = if instance.ram_mb >= 512 {
+        instance.ram_mb as u32
+    } else {
+        settings.ram_max.unwrap_or(4096)
+    };
     let ram_min = settings.ram_min.unwrap_or(1024).min(ram);
     let sep = if cfg!(windows) { ";" } else { ":" };
 
@@ -103,7 +111,7 @@ pub async fn launch_instance(
             natives_dir.to_string_lossy().to_string(),
         ),
         ("${launcher_name}", "VoxuraLauncher".to_string()),
-        ("${launcher_version}", "1.0.0".to_string()),
+        ("${launcher_version}", "1.1.0".to_string()),
         ("${classpath}", classpath.clone()),
         ("${classpath_separator}", sep.to_string()),
         (
@@ -113,16 +121,28 @@ pub async fn launch_instance(
         ("${version_name}", version_id.clone()),
         ("${java_net_preferIPv6Addresses}", "system".to_string()),
         ("${java_home}", java_path.to_string_lossy().to_string()),
-        ("${resolution_width}", settings.game_resolution.as_ref().map(|r| r.width.to_string()).unwrap_or("854".to_string())),
-        ("${resolution_height}", settings.game_resolution.as_ref().map(|r| r.height.to_string()).unwrap_or("480".to_string())),
+        (
+            "${resolution_width}",
+            settings
+                .game_resolution
+                .as_ref()
+                .map(|r| r.width.to_string())
+                .unwrap_or("854".to_string()),
+        ),
+        (
+            "${resolution_height}",
+            settings
+                .game_resolution
+                .as_ref()
+                .map(|r| r.height.to_string())
+                .unwrap_or("480".to_string()),
+        ),
     ]
     .into_iter()
     .collect();
 
     let mut args: Vec<String> = vec![
         "-XX:+IgnoreUnrecognizedVMOptions".to_string(),
-        format!("-Xmx{ram}m"),
-        format!("-Xms{}m", ram_min),
         "-XX:+UseG1GC".to_string(),
         "-XX:+ParallelRefProcEnabled".to_string(),
         "-XX:MaxGCPauseMillis=200".to_string(),
@@ -133,7 +153,12 @@ pub async fn launch_instance(
         "-XX:InitiatingHeapOccupancyPercent=15".to_string(),
     ];
 
-    let manifest_jvm = extract_jvm_args(&manifest, &replacements);
+    let manifest_jvm_raw = extract_jvm_args(&manifest, &replacements);
+    let manifest_jvm: Vec<String> = manifest_jvm_raw
+        .into_iter()
+        .filter(|a| !a.starts_with("-Xmx") && !a.starts_with("-Xms"))
+        .collect();
+
     let has_cp_from_manifest = manifest_jvm
         .iter()
         .any(|a| a == "-cp" || a == "--class-path" || a == "-classpath");
@@ -149,6 +174,9 @@ pub async fn launch_instance(
     if let Some(custom) = &instance.java_args {
         args.extend(custom.split_whitespace().map(|s| s.to_string()));
     }
+
+    args.push(format!("-Xmx{}m", ram));
+    args.push(format!("-Xms{}m", ram_min));
 
     args.push(manifest.main_class.clone());
 
@@ -169,17 +197,38 @@ pub async fn launch_instance(
         &settings,
     ));
 
+    args.push("--width".to_string());
+    args.push(
+        settings
+            .game_resolution
+            .as_ref()
+            .map(|r| r.width.to_string())
+            .unwrap_or("854".to_string()),
+    );
+    args.push("--height".to_string());
+    args.push(
+        settings
+            .game_resolution
+            .as_ref()
+            .map(|r| r.height.to_string())
+            .unwrap_or("480".to_string()),
+    );
+
     let mut cmd = tokio::process::Command::new(&java_path);
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000);
+
     cmd.args(&args)
-       .current_dir(&instance_dir)
-       .stdout(Stdio::piped())
-       .stderr(Stdio::piped());
+        .current_dir(&instance_dir)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
     if settings.launcher_behavior == "close_game" {
         cmd.kill_on_drop(true);
     }
 
-    let mut child = cmd.spawn()
+    let mut child = cmd
+        .spawn()
         .map_err(|e| format!("Impossible de lancer Java : {e}"))?;
 
     let pid = child.id().unwrap_or(0);
@@ -216,11 +265,14 @@ pub async fn launch_instance(
         use tokio::io::AsyncBufReadExt;
         let mut reader = tokio::io::BufReader::new(stdout).lines();
         while let Ok(Some(line)) = reader.next_line().await {
-            let _ = app_stdout.emit("launcher://game-log", serde_json::json!({
-                "instance_id": id_stdout,
-                "log_type": "stdout",
-                "line": line
-            }));
+            let _ = app_stdout.emit(
+                "launcher://game-log",
+                serde_json::json!({
+                    "instance_id": id_stdout,
+                    "log_type": "stdout",
+                    "line": line
+                }),
+            );
         }
     });
 
@@ -230,11 +282,14 @@ pub async fn launch_instance(
         use tokio::io::AsyncBufReadExt;
         let mut reader = tokio::io::BufReader::new(stderr).lines();
         while let Ok(Some(line)) = reader.next_line().await {
-            let _ = app_stderr.emit("launcher://game-log", serde_json::json!({
-                "instance_id": id_stderr,
-                "log_type": "stderr",
-                "line": line
-            }));
+            let _ = app_stderr.emit(
+                "launcher://game-log",
+                serde_json::json!({
+                    "instance_id": id_stderr,
+                    "log_type": "stderr",
+                    "line": line
+                }),
+            );
         }
     });
 
@@ -244,15 +299,17 @@ pub async fn launch_instance(
             Ok(status) => {
                 running_clone.lock().unwrap().remove(&id_clone);
                 let exit_code = status.code().unwrap_or(-1);
-                
+
                 let elapsed = start_time.elapsed().as_secs();
                 let now = crate::instances::manager::unix_now();
-                
+
                 use tauri::Manager;
                 use tauri_plugin_store::StoreExt;
 
                 if let Err(e) = (|| -> Result<(), String> {
-                    let store = app_clone.store("instances.json").map_err(|e| e.to_string())?;
+                    let store = app_clone
+                        .store("instances.json")
+                        .map_err(|e| e.to_string())?;
                     let state = app_clone.state::<crate::InstancesState>();
                     let mut list = state.0.lock().unwrap();
                     if let Some(inst) = list.iter_mut().find(|i| i.id == id_clone) {
@@ -616,8 +673,22 @@ fn build_game_args(
         ("${auth_access_token}", mc_token.to_string()),
         ("${user_type}", user_type.to_string()),
         ("${version_type}", "release".to_string()),
-        ("${resolution_width}", settings.game_resolution.as_ref().map(|r| r.width.to_string()).unwrap_or("854".to_string())),
-        ("${resolution_height}", settings.game_resolution.as_ref().map(|r| r.height.to_string()).unwrap_or("480".to_string())),
+        (
+            "${resolution_width}",
+            settings
+                .game_resolution
+                .as_ref()
+                .map(|r| r.width.to_string())
+                .unwrap_or("854".to_string()),
+        ),
+        (
+            "${resolution_height}",
+            settings
+                .game_resolution
+                .as_ref()
+                .map(|r| r.height.to_string())
+                .unwrap_or("480".to_string()),
+        ),
         ("${clientid}", "".to_string()),
         ("${auth_xuid}", "".to_string()),
     ]

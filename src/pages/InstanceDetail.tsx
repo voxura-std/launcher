@@ -145,7 +145,6 @@ export default function InstanceDetail() {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* Modals */}
       {showStopConfirm && (
         <ConfirmModal
           title="Forcer l'arrêt ?"
@@ -198,7 +197,7 @@ export default function InstanceDetail() {
             <div style={{
               position: 'absolute', bottom: -3, right: -3,
               width: 12, height: 12, borderRadius: '50%',
-              background: '#22c55e', border: '2px solid rgba(15,25,50,0.97)',
+              background: '#22c55e', border: '2px solid rgba(15, 30, 22,0.97)',
             }} />
           )}
         </div>
@@ -312,7 +311,7 @@ export default function InstanceDetail() {
           <div style={{ padding: '18px', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: 600 }}>
 
-              <StatCard icon={<Cpu size={16} color="#60a5fa" />} label="Version Minecraft"
+              <StatCard icon={<Cpu size={16} color="#4ade80" />} label="Version Minecraft"
                         value={instance.mc_version} />
               <StatCard icon={<Puzzle size={16} color={loaderColor} />} label="Mod Loader"
                         value={`${loaderLabel}${instance.loader_version ? ` ${instance.loader_version}` : ''}`} />
@@ -406,9 +405,9 @@ export default function InstanceDetail() {
                   {[1024, 2048, 4096, 8192].map(v => (
                     <button key={v} onClick={() => setEditRam(v)} style={{
                       padding: '4px 12px', borderRadius: 7, fontSize: 12,
-                      border: `1px solid ${editRam === v ? 'rgba(59,130,246,0.40)' : 'rgba(255,255,255,0.10)'}`,
-                      background: editRam === v ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)',
-                      color: editRam === v ? '#60a5fa' : 'var(--text-muted)',
+                      border: `1px solid ${editRam === v ? 'rgba(74,222,128,0.40)' : 'rgba(255,255,255,0.10)'}`,
+                      background: editRam === v ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)',
+                      color: editRam === v ? '#4ade80' : 'var(--text-muted)',
                       cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
                     }}>
                       {v >= 1024 ? `${v / 1024}G` : `${v}M`}
@@ -443,7 +442,7 @@ export default function InstanceDetail() {
                  <div style={{ color: 'var(--text-faint)', fontStyle: 'italic' }}>En attente de logs...</div>
               ) : (
                  logs.map((log, i) => {
-                    let color = '#d4d4d8'; // neutral
+                    let color = '#d4d4d8';
                     if (log.type === 'stderr' || log.line.includes('ERROR') || log.line.includes('FATAL') || log.line.includes('Exception')) color = '#fca5a5';
                     else if (log.line.includes('WARN')) color = '#fcd34d';
                     else if (log.line.includes('INFO')) color = '#6ee7b7';
@@ -531,7 +530,7 @@ function ConfirmModal({ title, message, warning, confirmLabel, confirmColor, onC
     }}>
       <div style={{
         width: 380, padding: '24px 26px',
-        background: 'rgba(15,25,50,0.97)',
+        background: 'rgba(15, 30, 22,0.97)',
         border: '1px solid rgba(239,68,68,0.25)',
         borderRadius: 16, boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
       }}>

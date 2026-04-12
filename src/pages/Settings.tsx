@@ -32,7 +32,6 @@ export default function Settings() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 680 }}>
         
-        {/* Catégorie: Général */}
         <section>
            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-main)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Monitor size={18} color="var(--primary)" /> Général
@@ -94,10 +93,10 @@ export default function Settings() {
                                 onClick={() => { updateSettings({ launcher_behavior: key as any }); setBehaviorOpen(false) }}
                                 style={{
                                    padding: '8px 12px', fontSize: 13, color: settings.launcher_behavior === key ? 'var(--primary)' : 'var(--text-main)',
-                                   cursor: 'pointer', background: settings.launcher_behavior === key ? 'rgba(59,130,246,0.1)' : 'transparent'
+                                   cursor: 'pointer', background: settings.launcher_behavior === key ? 'rgba(74,222,128,0.1)' : 'transparent'
                                 }}
                                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-                                onMouseLeave={e => (e.currentTarget.style.background = settings.launcher_behavior === key ? 'rgba(59,130,246,0.1)' : 'transparent')}
+                                onMouseLeave={e => (e.currentTarget.style.background = settings.launcher_behavior === key ? 'rgba(74,222,128,0.1)' : 'transparent')}
                              >
                                 {label}
                              </div>
@@ -126,7 +125,6 @@ export default function Settings() {
            </div>
         </section>
 
-        {/* Catégorie: Java */}
         <section>
            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-main)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Cpu size={18} color="var(--primary)" /> Java
@@ -181,7 +179,6 @@ export default function Settings() {
            </div>
         </section>
 
-        {/* Catégorie: À propos */}
         <section>
            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-main)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Info size={18} color="var(--primary)" /> À propos
@@ -191,9 +188,7 @@ export default function Settings() {
               
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 10, background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                       <span style={{ color: '#fff', fontWeight: 800, fontSize: 18 }}>VX</span>
-                    </div>
+                    <img src="/logo.png" alt="Voxura Logo" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'contain' }} />
                     <div>
                        <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)' }}>Voxura Launcher</h3>
                        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Par Voxura Studios</p>
@@ -211,7 +206,7 @@ export default function Settings() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                  <div style={{ flex: 1 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>Version actuelle</h3>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>v1.0.0</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>v1.1.0</p>
                  </div>
                  <button 
                     className="btn-ghost" 

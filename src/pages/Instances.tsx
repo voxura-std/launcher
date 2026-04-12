@@ -10,79 +10,24 @@ import { listen } from '@tauri-apps/api/event'
 import { useInstances, type Instance, type McVersion, type LoaderVersion } from '../hooks/useInstances'
 import { useNavigate } from 'react-router-dom'
 import { useOffline } from '../hooks/useOffline'
+import ProgressOverlay, { type Progress } from '../components/ProgressOverlay'
 
 
 type LoaderType = 'vanilla' | 'fabric' | 'forge' | 'neoforge' | 'quilt'
 
-interface Progress {
-  step: string
-  current: number
-  total: number
-  percent: number
-}
-
 const LOADERS: { id: LoaderType; label: string; color: string }[] = [
   { id: 'vanilla',  label: 'Vanilla',  color: '#418d54' },
   { id: 'fabric',   label: 'Fabric',   color: '#e9e2b8' },
-  { id: 'forge',    label: 'Forge',    color: '#0b3b79ff ' },
+  { id: 'forge',    label: 'Forge',    color: '#094facff ' },
   { id: 'neoforge', label: 'NeoForge', color: '#e86c1f' },
 ]
 
 const LOADER_COLOR: Record<LoaderType, string> = {
   vanilla:  '#418d54',
   fabric:   '#e9e2b8',
-  forge:    '#0b3b79ff',
+  forge:    '#094facff',
   neoforge: '#e86c1f',
   quilt:    '#9f5ece',
-}
-
-
-function ProgressOverlay({ progress }: { progress: Progress | null }) {
-  if (!progress) return null
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 200,
-      background: 'rgba(0,0,0,0.70)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      backdropFilter: 'blur(6px)',
-    }}>
-      <div style={{
-        width: 440, padding: '28px 30px',
-        background: 'rgba(15,25,50,0.97)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 18,
-        boxShadow: '0 32px 80px rgba(0,0,0,0.60)',
-      }}>
-        <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 6 }}>
-          Installation en cours…
-        </p>
-        <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 20 }}>
-          {progress.step}
-        </p>
-        <div style={{
-          height: 8, background: 'rgba(255,255,255,0.08)',
-          borderRadius: 99, overflow: 'hidden', marginBottom: 10,
-        }}>
-          <div style={{
-            height: '100%',
-            width: `${progress.percent}%`,
-            background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
-            borderRadius: 99,
-            transition: 'width 0.3s ease',
-          }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>
-            {progress.current} / {progress.total}
-          </span>
-          <span style={{ fontSize: 12, color: '#60a5fa', fontWeight: 600 }}>
-            {Math.round(progress.percent)}%
-          </span>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 
@@ -176,7 +121,7 @@ function CreateInstanceModal({
     }}>
       <div style={{
         width: 560, maxHeight: '85vh',
-        background: 'rgba(15,25,50,0.96)',
+        background: '#0f1e16f5',
         border: '1px solid rgba(255,255,255,0.12)',
         borderRadius: 18,
         display: 'flex', flexDirection: 'column',
@@ -205,7 +150,7 @@ function CreateInstanceModal({
               <div key={i} style={{
                 width: i === step ? 20 : 8, height: 8, borderRadius: 99,
                 background: i === step ? 'var(--primary)'
-                  : i < step ? 'rgba(59,130,246,0.40)' : 'rgba(255,255,255,0.12)',
+                  : i < step ? 'rgba(74, 222, 128,0.40)' : 'rgba(255,255,255,0.12)',
                 transition: 'all 0.25s',
               }} />
             ))}
@@ -244,9 +189,9 @@ function CreateInstanceModal({
                 />
                 <button onClick={() => setShowSnapshots(s => !s)} style={{
                   padding: '7px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 500,
-                  border: `1px solid ${showSnapshots ? 'rgba(59,130,246,0.40)' : 'rgba(255,255,255,0.10)'}`,
-                  background: showSnapshots ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)',
-                  color: showSnapshots ? '#60a5fa' : 'var(--text-muted)',
+                  border: `1px solid ${showSnapshots ? 'rgba(74, 222, 128,0.40)' : 'rgba(255,255,255,0.10)'}`,
+                  background: showSnapshots ? 'rgba(74, 222, 128,0.15)' : 'rgba(255,255,255,0.05)',
+                  color: showSnapshots ? '#4ade80' : 'var(--text-muted)',
                   cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
                   whiteSpace: 'nowrap', transition: 'all 0.15s',
                 }}>
@@ -256,7 +201,7 @@ function CreateInstanceModal({
 
               {loadingVersions ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: 10 }}>
-                  <Loader2 size={16} color="#60a5fa" style={{ animation: 'spin 1s linear infinite' }} />
+                  <Loader2 size={16} color="#4ade80" style={{ animation: 'spin 1s linear infinite' }} />
                   <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Chargement des versions…</span>
                 </div>
               ) : (
@@ -265,8 +210,8 @@ function CreateInstanceModal({
                     <button key={v.id} onClick={() => { setSelectedVersion(v); setError(null) }} style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '9px 12px', borderRadius: 10,
-                      border: `1px solid ${selectedVersion?.id === v.id ? 'rgba(59,130,246,0.40)' : 'rgba(255,255,255,0.07)'}`,
-                      background: selectedVersion?.id === v.id ? 'rgba(59,130,246,0.14)' : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${selectedVersion?.id === v.id ? 'rgba(74, 222, 128,0.40)' : 'rgba(255,255,255,0.07)'}`,
+                      background: selectedVersion?.id === v.id ? 'rgba(74, 222, 128,0.14)' : 'rgba(255,255,255,0.03)',
                       cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
                       transition: 'all 0.12s', textAlign: 'left', width: '100%',
                     }}>
@@ -290,7 +235,7 @@ function CreateInstanceModal({
                           {v.version_type === 'release' ? 'Stable' : v.version_type}
                         </span>
                       </div>
-                      {selectedVersion?.id === v.id && <Check size={14} color="#60a5fa" />}
+                      {selectedVersion?.id === v.id && <Check size={14} color="#4ade80" />}
                     </button>
                   ))}
                 </div>
@@ -329,12 +274,6 @@ function CreateInstanceModal({
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{loader.label}</p>
-                      <p style={{ fontSize: 10.5, color: 'var(--text-faint)', marginTop: 1 }}>
-                        {loader.id === 'vanilla'  && 'Sans mod loader'}
-                        {loader.id === 'fabric'   && 'Léger et rapide'}
-                        {loader.id === 'forge'    && 'Le plus populaire'}
-                        {loader.id === 'neoforge' && 'Fork moderne de Forge'}
-                      </p>
                     </div>
                     {selectedLoader === loader.id && <Check size={13} color={loader.color} />}
                   </button>
@@ -356,7 +295,7 @@ function CreateInstanceModal({
                   </label>
                   {loadingLoader ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Loader2 size={13} color="#60a5fa" style={{ animation: 'spin 1s linear infinite' }} />
+                      <Loader2 size={13} color="#4ade80" style={{ animation: 'spin 1s linear infinite' }} />
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chargement…</span>
                     </div>
                   ) : loaderVersions.length === 0 ? (
@@ -510,7 +449,7 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
         }}>
           <div style={{
             width: 380, padding: '24px 26px',
-            background: 'rgba(15,25,50,0.97)',
+            background: 'rgba(15, 30, 22,0.97)',
             border: '1px solid rgba(239,68,68,0.30)',
             borderRadius: 16,
             boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
@@ -570,7 +509,7 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
         }}>
           <div style={{
             width: 400, padding: '24px 26px',
-            background: 'rgba(15,25,50,0.97)',
+            background: 'rgba(15, 30, 22,0.97)',
             border: '1px solid rgba(239,68,68,0.25)',
             borderRadius: 16,
             boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
@@ -677,7 +616,7 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
               position: 'absolute', bottom: -2, right: -2,
               width: 12, height: 12, borderRadius: '50%',
               background: '#22c55e',
-              border: '2px solid rgba(15,25,50,0.97)',
+              border: '2px solid rgba(15, 30, 22,0.97)',
             }} />
           )}
         </div>
@@ -840,9 +779,9 @@ export default function Instances() {
         <button style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 11px', width: '100%', textAlign: 'left',
-          borderRadius: 9, border: '1px solid rgba(59,130,246,0.25)',
-          background: 'rgba(59,130,246,0.18)',
-          color: '#93c5fd', fontSize: 12.5, fontWeight: 600,
+          borderRadius: 9, border: '1px solid rgba(74, 222, 128,0.25)',
+          background: 'rgba(74, 222, 128,0.18)',
+          color: '#86efac', fontSize: 12.5, fontWeight: 600,
           cursor: 'pointer', outline: 'none', fontFamily: 'inherit',
         }}>
           <LayoutGrid size={13} strokeWidth={2.2} />

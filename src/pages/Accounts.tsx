@@ -72,19 +72,19 @@ export default function Accounts() {
             <button onClick={loginMicrosoft} disabled={loading} style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
               padding: '22px 20px', width: 170, borderRadius: 13,
-              border: '1.5px dashed rgba(59,130,246,0.35)',
-              background: loading ? 'rgba(59,130,246,0.03)' : 'rgba(59,130,246,0.07)',
+              border: '1.5px dashed rgba(74,222,128,0.35)',
+              background: loading ? 'rgba(74,222,128,0.03)' : 'rgba(74,222,128,0.07)',
               cursor: loading ? 'wait' : 'pointer',
               fontFamily: 'inherit', outline: 'none', transition: 'all 0.18s',
             }}>
               <div style={{
                 width: 44, height: 44, borderRadius: 12,
-                background: 'rgba(59,130,246,0.18)',
+                background: 'rgba(74,222,128,0.18)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 {loading
-                  ? <Loader2 size={20} color="#60a5fa" style={{ animation: 'spin 1s linear infinite' }} />
-                  : <ShieldCheck size={20} color="#60a5fa" strokeWidth={1.8} />
+                  ? <Loader2 size={20} color="#4ade80" style={{ animation: 'spin 1s linear infinite' }} />
+                  : <ShieldCheck size={20} color="#4ade80" strokeWidth={1.8} />
                 }
               </div>
               <div style={{ textAlign: 'center' }}>
@@ -172,15 +172,15 @@ function AccountRow({ account, isActive, onSelect, onLogout }: {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 11,
-      background: isActive ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.05)',
-      border: `1px solid ${isActive ? 'rgba(59,130,246,0.28)' : 'rgba(255,255,255,0.09)'}`,
+      background: isActive ? 'rgba(74,222,128,0.12)' : 'rgba(255,255,255,0.05)',
+      border: `1px solid ${isActive ? 'rgba(74,222,128,0.28)' : 'rgba(255,255,255,0.09)'}`,
     }}>
       <div style={{
         width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-        background: isActive ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.10)',
+        background: isActive ? 'rgba(74,222,128,0.25)' : 'rgba(255,255,255,0.10)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 14, fontWeight: 700,
-        color: isActive ? '#60a5fa' : 'rgba(255,255,255,0.45)',
+        color: isActive ? '#4ade80' : 'rgba(255,255,255,0.45)',
       }}>
         {account.username[0].toUpperCase()}
       </div>
@@ -200,7 +200,7 @@ function AccountRow({ account, isActive, onSelect, onLogout }: {
         }}>Sélectionner</button>
       )}
       {isActive && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#60a5fa', fontWeight: 500 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#4ade80', fontWeight: 500 }}>
           <Check size={13} /> Actif
         </div>
       )}

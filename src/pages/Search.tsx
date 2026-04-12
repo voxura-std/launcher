@@ -30,9 +30,9 @@ export default function Search() {
               padding:'5px 14px', borderRadius:8, border:'none', cursor:'pointer',
               outline:'none', fontSize:12.5, fontWeight:500, fontFamily:'inherit',
               transition:'all 0.15s',
-              background: source===s ? 'rgba(59,130,246,0.80)' : 'transparent',
+              background: source===s ? 'rgba(74,222,128,0.80)' : 'transparent',
               color:       source===s ? '#fff' : 'var(--text-muted)',
-              boxShadow:   source===s ? '0 2px 8px rgba(59,130,246,0.30)' : 'none',
+              boxShadow:   source===s ? '0 2px 8px rgba(74,222,128,0.30)' : 'none',
             }}>
               {s==='modrinth' ? 'Modrinth' : 'CurseForge'}
             </button>
@@ -45,9 +45,9 @@ export default function Search() {
           <button key={label} onClick={() => setCategory(label)} style={{
             display:'flex', alignItems:'center', gap:6,
             padding:'5px 13px', borderRadius:8, outline:'none', fontFamily:'inherit',
-            border:`1px solid ${category===label ? 'rgba(59,130,246,0.40)' : 'rgba(255,255,255,0.10)'}`,
-            background: category===label ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)',
-            color: category===label ? '#60a5fa' : 'var(--text-muted)',
+            border:`1px solid ${category===label ? 'rgba(74,222,128,0.40)' : 'rgba(255,255,255,0.10)'}`,
+            background: category===label ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)',
+            color: category===label ? '#4ade80' : 'var(--text-muted)',
             fontSize:12.5, fontWeight:500, cursor:'pointer', transition:'all 0.15s',
           }}>
             <Icon size={13} strokeWidth={2}/>{label}

@@ -4,6 +4,7 @@ import { useAccounts } from '../hooks/useAccounts'
 import { useInstances } from '../hooks/useInstances'
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import ProgressOverlay, { type Progress } from '../components/ProgressOverlay'
 
 export default function Launch() {
   const { activeAccount } = useAccounts()
@@ -13,14 +14,13 @@ export default function Launch() {
   const [showInstanceMenu, setShowInstanceMenu] = useState(false)
   const [launching, setLaunching] = useState(false)
   const [showStopConfirm, setShowStopConfirm] = useState(false)
+  const [progress, setProgress] = useState<Progress | null>(null)
 
-  // Auto-select last played instance
   useEffect(() => {
     if (instances.length > 0 && !selectedInstanceId) {
       const sorted = [...instances].sort((a, b) => (b.last_played || 0) - (a.last_played || 0))
       setSelectedInstanceId(sorted[0].id)
     } else if (instances.length > 0 && selectedInstanceId) {
-       // if selected instance was deleted
        if (!instances.find(i => i.id === selectedInstanceId)) {
           setSelectedInstanceId(instances[0].id)
        }
@@ -43,14 +43,24 @@ export default function Launch() {
 
   useEffect(() => {
     let unlistenStarted: () => void
+    let unlistenProgress: () => void
+
     listen('launcher://game-started', (e: any) => {
       if (e.payload.instance_id === selectedInstanceId) {
          setLaunching(false)
       }
     }).then(f => unlistenStarted = f)
 
+    listen<Progress>('launcher://progress', (e) => {
+      setProgress(e.payload)
+      if (e.payload.percent >= 100) {
+        setTimeout(() => setProgress(null), 1000)
+      }
+    }).then(f => unlistenProgress = f)
+
     return () => {
       if (unlistenStarted) unlistenStarted()
+      if (unlistenProgress) unlistenProgress()
     }
   }, [selectedInstanceId])
 
@@ -59,8 +69,9 @@ export default function Launch() {
       width:'100%', height:'100%',
       display:'flex', flexDirection:'column',
       padding: 10, boxSizing: 'border-box',
-      gap: 10,
     }}>
+
+      <ProgressOverlay progress={progress} />
 
       {showStopConfirm && selectedInstance && (
         <div style={{
@@ -71,7 +82,7 @@ export default function Launch() {
         }}>
           <div style={{
             width: 380, padding: '24px 26px',
-            background: 'rgba(15,25,50,0.97)',
+            background: 'rgba(15, 30, 22,0.97)',
             border: '1px solid rgba(239,68,68,0.30)',
             borderRadius: 16,
             boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
@@ -137,7 +148,6 @@ export default function Launch() {
         boxShadow: '0 4px 20px rgba(0,0,0,0.20)',
       }}>
 
-        {/* Compte (Lecture Seule) */}
         <div style={{
           display:'flex', alignItems:'center', gap:9,
           padding:'7px 13px', minWidth:160,
@@ -160,7 +170,6 @@ export default function Launch() {
           </div>
         </div>
 
-        {/* Sélection Instance */}
         <div style={{ position: 'relative', flex: 1, maxWidth: 280 }}>
           <button style={{
             display:'flex', alignItems:'center', gap:9,
@@ -192,7 +201,7 @@ export default function Launch() {
                   position: 'absolute', bottom: -2, right: -2,
                   width: 8, height: 8, borderRadius: '50%',
                   background: '#22c55e',
-                  border: '2px solid rgba(15,25,50,0.97)',
+                  border: '2px solid rgba(15, 30, 22,0.97)',
                   animation: 'pulse 2s infinite',
                 }} />
               )}
@@ -207,7 +216,6 @@ export default function Launch() {
             <ChevronDown size={14} color="var(--text-faint)" style={{ transform: showInstanceMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
           </button>
 
-          {/* Menu Instances */}
           {showInstanceMenu && (
             <div style={{
               position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, right: 0,
@@ -225,7 +233,7 @@ export default function Launch() {
                         style={{
                           display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
                           borderRadius: 8, cursor: 'pointer',
-                          background: selectedInstanceId === inst.id ? 'rgba(59,130,246,0.15)' : 'transparent'
+                          background: selectedInstanceId === inst.id ? 'rgba(74,222,128,0.15)' : 'transparent'
                         }}
                         onMouseEnter={e => { if (selectedInstanceId !== inst.id) e.currentTarget.style.background='rgba(255,255,255,0.05)' }}
                         onMouseLeave={e => { if (selectedInstanceId !== inst.id) e.currentTarget.style.background='transparent' }}
@@ -247,10 +255,10 @@ export default function Launch() {
                          }} />
                        )}
                      </div>
-                     <div style={{ flex: 1, fontSize: 12.5, color: selectedInstanceId === inst.id ? '#60a5fa' : 'var(--text-main)', fontWeight: 500 }}>
+                     <div style={{ flex: 1, fontSize: 12.5, color: selectedInstanceId === inst.id ? '#4ade80' : 'var(--text-main)', fontWeight: 500 }}>
                         {inst.name}
                      </div>
-                     {selectedInstanceId === inst.id && <Check size={14} color="#60a5fa" />}
+                     {selectedInstanceId === inst.id && <Check size={14} color="#4ade80" />}
                    </div>
                  ))
               )}
