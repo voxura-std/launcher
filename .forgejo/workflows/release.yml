@@ -3,7 +3,7 @@ name: "Release Tauri App"
 on:
   push:
     tags:
-      - "v*" # S'active lorsqu'un tag de version (ex. v1.1.0) est poussé sur repo
+      - "v*"
 
 jobs:
   build-and-release:
