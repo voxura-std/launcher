@@ -133,6 +133,9 @@ pub async fn download_and_install_update(app: AppHandle) -> Result<(), String> {
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
     }
 
+    file.sync_all().await.ok();
+    drop(file);
+
     if cfg!(windows) {
         std::process::Command::new(&temp_file)
             .spawn()
