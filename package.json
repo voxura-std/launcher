@@ -1,7 +1,10 @@
 {
   "name": "voxura-launcher",
   "private": true,
-  "version": "1.1.2",
+  "version": "1.1.3",
+  "descrption": "Launcher Minecraft par Voxura Studios",
+  "author": "MrSchnnub",
+  "license": "GPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +18,7 @@
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-opener": "^2.5.3",
     "@tauri-apps/plugin-store": "^2.4.2",
+    "framer-motion": "^12.38.0",
     "lucide-react": "^1.7.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

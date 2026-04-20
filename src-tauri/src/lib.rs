@@ -290,9 +290,13 @@ async fn select_custom_icon(
     state: State<'_, InstancesState>,
 ) -> Result<String, String> {
     use tauri_plugin_dialog::DialogExt;
-    
-    let file_opt = app.dialog().file().add_filter("Image", &["png", "jpg", "jpeg", "webp"]).blocking_pick_file();
-    
+
+    let file_opt = app
+        .dialog()
+        .file()
+        .add_filter("Image", &["png", "jpg", "jpeg", "webp"])
+        .blocking_pick_file();
+
     if let Some(path) = file_opt {
         let path_str = path.into_path().map_err(|e| e.to_string())?;
 
@@ -306,9 +310,17 @@ async fn select_custom_icon(
             }
         };
 
-        let dest = dest_dir.join(&folder_name).join(format!("icon_{}.png", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()));
+        let dest = dest_dir.join(&folder_name).join(format!(
+            "icon_{}.png",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        ));
 
-        tokio::fs::copy(&path_str, &dest).await.map_err(|e| format!("Impossible de copier l'icône : {e}"))?;
+        tokio::fs::copy(&path_str, &dest)
+            .await
+            .map_err(|e| format!("Impossible de copier l'icône : {e}"))?;
 
         Ok(dest.to_string_lossy().to_string())
     } else {
@@ -417,17 +429,6 @@ async fn launch_instance_cmd(
                     lv,
                 ) {
                     launcher::loaders::forge::install_forge(&app, &instance.mc_version, lv).await?;
-                }
-            }
-        }
-        instances::types::Loader::Quilt => {
-            if let Some(lv) = &instance.loader_version {
-                if !launcher::loaders::quilt::is_quilt_installed(
-                    &game_dir,
-                    &instance.mc_version,
-                    lv,
-                ) {
-                    launcher::loaders::quilt::install_quilt(&app, &instance.mc_version, lv).await?;
                 }
             }
         }
@@ -560,14 +561,20 @@ pub fn run() {
                         }
                     }
                 }
-                
+
                 if close_game {
                     let state = app_handle.state::<RunningState>();
                     for (_, pid) in state.0.lock().unwrap().iter() {
                         #[cfg(windows)]
-                        std::process::Command::new("taskkill").args(["/F", "/T", "/PID", &pid.to_string()]).spawn().ok();
+                        std::process::Command::new("taskkill")
+                            .args(["/F", "/T", "/PID", &pid.to_string()])
+                            .spawn()
+                            .ok();
                         #[cfg(not(windows))]
-                        std::process::Command::new("kill").args(["-9", &pid.to_string()]).spawn().ok();
+                        std::process::Command::new("kill")
+                            .args(["-9", &pid.to_string()])
+                            .spawn()
+                            .ok();
                     }
                 }
             }

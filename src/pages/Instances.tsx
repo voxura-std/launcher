@@ -9,6 +9,7 @@ import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useInstances, type Instance, type McVersion, type LoaderVersion } from '../hooks/useInstances'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useOffline } from '../hooks/useOffline'
 import ProgressOverlay, { type Progress } from '../components/ProgressOverlay'
 
@@ -113,21 +114,32 @@ function CreateInstanceModal({
   })
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 100,
-      background: 'rgba(0,0,0,0.60)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      backdropFilter: 'blur(4px)',
-    }}>
-      <div style={{
-        width: 560, maxHeight: '85vh',
-        background: '#0f1e16f5',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 18,
-        display: 'flex', flexDirection: 'column',
-        boxShadow: '0 32px 80px rgba(0,0,0,0.60)',
-        overflow: 'hidden',
-      }}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(0,0,0,0.60)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        style={{
+          width: 560, maxHeight: '85vh',
+          background: '#0f1e16f5',
+          border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 18,
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.60)',
+          overflow: 'hidden',
+        }}
+      >
 
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -418,8 +430,8 @@ function CreateInstanceModal({
             </button>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }
 
@@ -440,20 +452,32 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
 
   return (
     <>
-      {showStopConfirm && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 300,
-          background: 'rgba(0,0,0,0.70)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)',
-        }}>
-          <div style={{
-            width: 380, padding: '24px 26px',
-            background: 'rgba(15, 30, 22,0.97)',
-            border: '1px solid rgba(239,68,68,0.30)',
-            borderRadius: 16,
-            boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
-          }}>
+      <AnimatePresence>
+        {showStopConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 300,
+              background: 'rgba(0,0,0,0.70)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              style={{
+                width: 380, padding: '24px 26px',
+                background: 'rgba(15, 30, 22,0.97)',
+                border: '1px solid rgba(239,68,68,0.30)',
+                borderRadius: 16,
+                boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
+              }}
+            >
             <div style={{
               width: 48, height: 48, borderRadius: 14,
               background: 'rgba(239,68,68,0.15)',
@@ -496,24 +520,37 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
                 Forcer l'arrêt
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {showDeleteConfirm && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 300,
-          background: 'rgba(0,0,0,0.70)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)',
-        }}>
-          <div style={{
-            width: 400, padding: '24px 26px',
-            background: 'rgba(15, 30, 22,0.97)',
-            border: '1px solid rgba(239,68,68,0.25)',
-            borderRadius: 16,
-            boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
-          }}>
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 300,
+              background: 'rgba(0,0,0,0.70)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              style={{
+                width: 400, padding: '24px 26px',
+                background: 'rgba(15, 30, 22,0.97)',
+                border: '1px solid rgba(239,68,68,0.25)',
+                borderRadius: 16,
+                boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
+              }}
+            >
             <div style={{
               width: 48, height: 48, borderRadius: 14,
               background: 'rgba(239,68,68,0.12)',
@@ -582,9 +619,10 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
                 Supprimer définitivement
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div 
       onClick={() => navigate(`/instances/${instance.id}`)}
@@ -760,12 +798,14 @@ export default function Instances() {
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
 
-      {showModal && (
-        <CreateInstanceModal
-          onClose={() => setShowModal(false)}
-          onCreate={handleCreate}
-        />
-      )}
+      <AnimatePresence>
+        {showModal && (
+          <CreateInstanceModal
+            onClose={() => setShowModal(false)}
+            onCreate={handleCreate}
+          />
+        )}
+      </AnimatePresence>
       <ProgressOverlay progress={progress} />
 
       <aside style={{

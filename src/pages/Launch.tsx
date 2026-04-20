@@ -4,6 +4,7 @@ import { useAccounts } from '../hooks/useAccounts'
 import { useInstances } from '../hooks/useInstances'
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { motion, AnimatePresence } from 'framer-motion'
 import ProgressOverlay, { type Progress } from '../components/ProgressOverlay'
 
 export default function Launch() {
@@ -73,20 +74,32 @@ export default function Launch() {
 
       <ProgressOverlay progress={progress} />
 
-      {showStopConfirm && selectedInstance && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 300,
-          background: 'rgba(0,0,0,0.70)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)',
-        }}>
-          <div style={{
-            width: 380, padding: '24px 26px',
-            background: 'rgba(15, 30, 22,0.97)',
-            border: '1px solid rgba(239,68,68,0.30)',
-            borderRadius: 16,
-            boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
-          }}>
+      <AnimatePresence>
+        {showStopConfirm && selectedInstance && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 300,
+              background: 'rgba(0,0,0,0.70)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              style={{
+                width: 380, padding: '24px 26px',
+                background: 'rgba(15, 30, 22,0.97)',
+                border: '1px solid rgba(239,68,68,0.30)',
+                borderRadius: 16,
+                boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
+              }}
+            >
             <div style={{
               width: 48, height: 48, borderRadius: 14,
               background: 'rgba(239,68,68,0.15)',
@@ -129,9 +142,10 @@ export default function Launch() {
                 Forcer l'arrêt
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div style={{ flex: 1 }} onClick={() => setShowInstanceMenu(false)} />
 

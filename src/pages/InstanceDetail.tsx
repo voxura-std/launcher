@@ -11,6 +11,7 @@ import { listen } from '@tauri-apps/api/event'
 import { useInstances } from '../hooks/useInstances'
 import { useOffline } from '../hooks/useOffline'
 import ModsManager from '../components/ModsManager'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type Tab = 'overview' | 'mods' | 'resourcepacks' | 'shaders' | 'settings' | 'logs'
 const LOADER_COLOR: Record<string, string> = {
@@ -145,29 +146,33 @@ export default function InstanceDetail() {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {showStopConfirm && (
-        <ConfirmModal
-          title="Forcer l'arrêt ?"
-          message="Le processus Java sera terminé immédiatement."
-          warning="⚠️ Les données non sauvegardées seront perdues."
-          confirmLabel="Forcer l'arrêt"
-          confirmColor="rgba(239,68,68,0.80)"
-          onCancel={() => setShowStopConfirm(false)}
-          onConfirm={() => { stopInstance(instance.id); setShowStopConfirm(false) }}
-        />
-      )}
+      <AnimatePresence>
+        {showStopConfirm && (
+          <ConfirmModal
+            title="Forcer l'arrêt ?"
+            message="Le processus Java sera terminé immédiatement."
+            warning="⚠️ Les données non sauvegardées seront perdues."
+            confirmLabel="Forcer l'arrêt"
+            confirmColor="rgba(239,68,68,0.80)"
+            onCancel={() => setShowStopConfirm(false)}
+            onConfirm={() => { stopInstance(instance.id); setShowStopConfirm(false) }}
+          />
+        )}
+      </AnimatePresence>
 
-      {showDeleteConfirm && (
-        <ConfirmModal
-          title={`Supprimer "${instance.name}" ?`}
-          message="Le dossier de l'instance et tout son contenu seront définitivement supprimés."
-          warning="⚠️ Cette action est irréversible."
-          confirmLabel="Supprimer définitivement"
-          confirmColor="rgba(239,68,68,0.75)"
-          onCancel={() => setShowDeleteConfirm(false)}
-          onConfirm={handleDelete}
-        />
-      )}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <ConfirmModal
+            title={`Supprimer "${instance.name}" ?`}
+            message="Le dossier de l'instance et tout son contenu seront définitivement supprimés."
+            warning="⚠️ Cette action est irréversible."
+            confirmLabel="Supprimer définitivement"
+            confirmColor="rgba(239,68,68,0.75)"
+            onCancel={() => setShowDeleteConfirm(false)}
+            onConfirm={handleDelete}
+          />
+        )}
+      </AnimatePresence>
 
       <div style={{
         display: 'flex', alignItems: 'center', gap: 14,
@@ -522,18 +527,29 @@ function ConfirmModal({ title, message, warning, confirmLabel, confirmColor, onC
   onCancel: () => void; onConfirm: () => void
 }) {
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 300,
-      background: 'rgba(0,0,0,0.70)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      backdropFilter: 'blur(4px)',
-    }}>
-      <div style={{
-        width: 380, padding: '24px 26px',
-        background: 'rgba(15, 30, 22,0.97)',
-        border: '1px solid rgba(239,68,68,0.25)',
-        borderRadius: 16, boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
-      }}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 300,
+        background: 'rgba(0,0,0,0.70)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        style={{
+          width: 380, padding: '24px 26px',
+          background: 'rgba(15, 30, 22,0.97)',
+          border: '1px solid rgba(239,68,68,0.25)',
+          borderRadius: 16, boxShadow: '0 24px 60px rgba(0,0,0,0.60)',
+        }}
+      >
         <div style={{
           width: 46, height: 46, borderRadius: 13,
           background: 'rgba(239,68,68,0.12)',
@@ -570,8 +586,8 @@ function ConfirmModal({ title, message, warning, confirmLabel, confirmColor, onC
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}>{confirmLabel}</button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }
 

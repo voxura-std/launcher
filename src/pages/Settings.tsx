@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Monitor, Sun, Moon, Cpu, Settings as SettingsIcon, Info, Heart, ExternalLink, RefreshCw, ChevronDown } from 'lucide-react'
+import { Monitor, Cpu, Settings as SettingsIcon, Info, Heart, ExternalLink, RefreshCw, ChevronDown } from 'lucide-react'
 import { useSettings } from '../hooks/useSettings'
 
 export default function Settings() {
@@ -38,30 +38,6 @@ export default function Settings() {
            </h2>
 
            <div className="card" style={{ padding: '16px 20px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                 <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>Thème du Launcher</h3>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Changer l'apparence visuelle entre clair et sombre</p>
-                 </div>
-                 <div style={{ display: 'flex', gap: 8, background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 10 }}>
-                    <button 
-                       onClick={() => updateSettings({ theme: 'dark' })}
-                       style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: settings.theme === 'dark' ? 'var(--primary)' : 'transparent', color: settings.theme === 'dark' ? '#fff' : 'var(--text-muted)', border: 'none', cursor: 'pointer', outline: 'none' }}
-                    >
-                       <Moon size={14} /> Sombre
-                    </button>
-                    <button 
-                       onClick={() => updateSettings({ theme: 'light' })}
-                       style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: settings.theme === 'light' ? 'var(--primary)' : 'transparent', color: settings.theme === 'light' ? '#fff' : 'var(--text-muted)', border: 'none', cursor: 'pointer', outline: 'none' }}
-                    >
-                       <Sun size={14} /> Clair
-                    </button>
-                 </div>
-              </div>
-
-              <div style={{ width: '100%', height: 1, background: 'var(--border)', margin: '16px 0' }} />
-
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                  <div style={{ flex: 1 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>Comportement au démarrage</h3>
@@ -206,7 +182,7 @@ export default function Settings() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                  <div style={{ flex: 1 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>Version actuelle</h3>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>v1.1.2</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>v1.1.3</p>
                  </div>
                  <button 
                     className="btn-ghost" 

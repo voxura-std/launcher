@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from './Navbar'
 
 export default function Layout() {
@@ -40,7 +41,18 @@ export default function Layout() {
         boxShadow: isLaunchPage ? 'none' : '0 4px 24px rgba(0,0,0,0.30), 0 0 0 1px rgba(255,255,255,0.06)',
         zIndex: 1,
       }}>
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </div>
 
     </div>

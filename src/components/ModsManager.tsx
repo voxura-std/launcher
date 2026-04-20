@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Download, Trash2, Power, Puzzle, Image, Palette,
   Loader2, CheckCircle2, AlertCircle
@@ -306,108 +307,122 @@ export default function ModsManager({ instance, type, isRunning, offline }: { in
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
 
-      {fileToDelete && (
-         <div style={{
-            position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
-         }}>
-            <div style={{
-               background: 'rgba(15, 30, 22,0.97)', border: '1px solid rgba(239,68,68,0.25)',
-               padding: 24, borderRadius: 16, width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.6)'
-            }}>
-               <div style={{
-                  width: 46, height: 46, borderRadius: 13, background: 'rgba(239,68,68,0.12)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14
-               }}>
-                  <AlertCircle size={22} color="#f87171" />
-               </div>
-               <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>
-                  Supprimer "{fileToDelete.modrinthName || fileToDelete.filename}" ?
-               </p>
-               <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.6 }}>
-                  Ce fichier sera définitivement supprimé du dossier de l'instance.
-               </p>
+      <AnimatePresence>
+        {fileToDelete && (
+           <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
+              }}>
+              <motion.div
+                 initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                 style={{
+                   background: 'rgba(15, 30, 22,0.97)', border: '1px solid rgba(239,68,68,0.25)',
+                   padding: 24, borderRadius: 16, width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.6)'
+                 }}>
+                 <div style={{
+                    width: 46, height: 46, borderRadius: 13, background: 'rgba(239,68,68,0.12)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14
+                 }}>
+                    <AlertCircle size={22} color="#f87171" />
+                 </div>
+                 <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>
+                    Supprimer "{fileToDelete.modrinthName || fileToDelete.filename}" ?
+                 </p>
+                 <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.6 }}>
+                    Ce fichier sera définitivement supprimé du dossier de l'instance.
+                 </p>
+  
+                 <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => setFileToDelete(null)} style={{
+                       flex: 1, padding: 9, borderRadius: 10, background: 'rgba(255,255,255,0.07)',
+                       border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-muted)', cursor: 'pointer',
+                       fontWeight: 500, fontSize: 13
+                    }}>Annuler</button>
+                    <button onClick={confirmDeleteAddon} style={{
+                       flex: 1, padding: 9, borderRadius: 10, background: 'rgba(239,68,68,0.80)',
+                       border: 'none', color: '#fff', cursor: 'pointer',
+                       fontWeight: 600, fontSize: 13
+                    }}>Supprimer</button>
+                 </div>
+              </motion.div>
+           </motion.div>
+        )}
+      </AnimatePresence>
 
-               <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setFileToDelete(null)} style={{
-                     flex: 1, padding: 9, borderRadius: 10, background: 'rgba(255,255,255,0.07)',
-                     border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-muted)', cursor: 'pointer',
-                     fontWeight: 500, fontSize: 13
-                  }}>Annuler</button>
-                  <button onClick={confirmDeleteAddon} style={{
-                     flex: 1, padding: 9, borderRadius: 10, background: 'rgba(239,68,68,0.80)',
-                     border: 'none', color: '#fff', cursor: 'pointer',
-                     fontWeight: 600, fontSize: 13
-                  }}>Supprimer</button>
-               </div>
-            </div>
-         </div>
-      )}
-
-      {pendingInstall && (
-         <div style={{
-            position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.7)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
-         }}>
-            <div style={{
-               background: 'rgba(15, 30, 22,0.97)', border: '1px solid rgba(255,255,255,0.1)',
-               padding: 24, borderRadius: 16, width: 440, boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
-            }}>
-               <h3 style={{ margin: 0, fontSize: 18, color: 'var(--text-main)', marginBottom: 8 }}>
-                  Dépendances Requises
-               </h3>
-               <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>
-                  <strong>{pendingInstall.project.title}</strong> nécessite l'installation des dépendances suivantes pour fonctionner correctement :
-               </p>
-               
-               <div style={{
-                  background: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 10,
-                  border: '1px solid rgba(255,255,255,0.05)', maxHeight: 200, overflowY: 'auto',
-                  display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20
-               }}>
-                  {pendingInstall.versionsToInstall.map(v => {
-                      const proj = pendingInstall.projectDetails.find(p => p.id === v.project_id)
-                      return (
-                         <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            {proj?.icon_url ? 
-                               <img src={proj.icon_url} style={{ width: 24, height: 24, borderRadius: 6 }} /> :
-                               <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.1)' }} />
-                            }
-                            <div>
-                               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{proj?.title || v.project_id}</p>
-                               <p style={{ margin: 0, fontSize: 11, color: 'var(--text-faint)' }}>{v.version_number}</p>
-                            </div>
-                         </div>
-                      )
-                  })}
-               </div>
-
-               <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => {
-                     setPendingInstall(null)
-                     setTasks(prev => {
-                        const copy = { ...prev }
-                        delete copy[pendingInstall.project.project_id]
-                        return copy
-                     })
-                  }} style={{
-                     flex: 1, padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.05)',
-                     border: '1px solid rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer'
-                  }} disabled={installing}>
-                     Annuler
-                  </button>
-                  <button onClick={confirmDependencies} style={{
-                     flex: 1, padding: 10, borderRadius: 8, background: 'var(--primary)',
-                     border: 'none', color: '#fff', fontWeight: 600, cursor: 'pointer',
-                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                  }} disabled={installing}>
-                     {installing ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={16} />}
-                     Tout Télécharger
-                  </button>
-               </div>
-            </div>
-         </div>
-      )}
+      <AnimatePresence>
+        {pendingInstall && (
+           <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.7)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
+              }}>
+              <motion.div
+                 initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                 style={{
+                   background: 'rgba(15, 30, 22,0.97)', border: '1px solid rgba(255,255,255,0.1)',
+                   padding: 24, borderRadius: 16, width: 440, boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
+                 }}>
+                 <h3 style={{ margin: 0, fontSize: 18, color: 'var(--text-main)', marginBottom: 8 }}>
+                    Dépendances Requises
+                 </h3>
+                 <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>
+                    <strong>{pendingInstall.project.title}</strong> nécessite l'installation des dépendances suivantes pour fonctionner correctement :
+                 </p>
+                 
+                 <div style={{
+                    background: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 10,
+                    border: '1px solid rgba(255,255,255,0.05)', maxHeight: 200, overflowY: 'auto',
+                    display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20
+                 }}>
+                    {pendingInstall.versionsToInstall.map(v => {
+                        const proj = pendingInstall.projectDetails.find(p => p.id === v.project_id)
+                        return (
+                           <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              {proj?.icon_url ? 
+                                 <img src={proj.icon_url} style={{ width: 24, height: 24, borderRadius: 6 }} /> :
+                                 <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.1)' }} />
+                              }
+                              <div>
+                                 <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{proj?.title || v.project_id}</p>
+                                 <p style={{ margin: 0, fontSize: 11, color: 'var(--text-faint)' }}>{v.version_number}</p>
+                              </div>
+                           </div>
+                        )
+                    })}
+                 </div>
+  
+                 <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => {
+                       setPendingInstall(null)
+                       setTasks(prev => {
+                          const copy = { ...prev }
+                          delete copy[pendingInstall.project.project_id]
+                          return copy
+                       })
+                    }} style={{
+                       flex: 1, padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.05)',
+                       border: '1px solid rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer'
+                    }} disabled={installing}>
+                       Annuler
+                    </button>
+                    <button onClick={confirmDependencies} style={{
+                       flex: 1, padding: 10, borderRadius: 8, background: 'var(--primary)',
+                       border: 'none', color: '#fff', fontWeight: 600, cursor: 'pointer',
+                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }} disabled={installing}>
+                       {installing ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={16} />}
+                       Tout Télécharger
+                    </button>
+                 </div>
+              </motion.div>
+           </motion.div>
+        )}
+      </AnimatePresence>
 
       <div style={{
         display: 'flex', gap: 10, padding: '18px 18px 0', borderBottom: '1px solid rgba(255,255,255,0.05)',

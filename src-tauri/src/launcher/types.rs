@@ -2,24 +2,21 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DownloadProgress {
-    pub step:    String,
+    pub step: String,
     pub current: u64,
-    pub total:   u64,
+    pub total: u64,
     pub percent: f64,
 }
 
-
 #[derive(Deserialize, Clone)]
 pub struct VersionManifest {
-    pub id:           String,
-    pub downloads:    Option<VersionDownloads>,
-    pub libraries:    Vec<Library>,
+    pub downloads: Option<VersionDownloads>,
+    pub libraries: Vec<Library>,
     #[serde(rename = "assetIndex")]
-    pub asset_index:  Option<AssetIndex>,
-    pub assets:       Option<String>,
+    pub asset_index: Option<AssetIndex>,
     #[serde(rename = "mainClass")]
-    pub main_class:   String,
-    pub arguments:    Option<Arguments>,
+    pub main_class: String,
+    pub arguments: Option<Arguments>,
     #[serde(rename = "minecraftArguments")]
     pub minecraft_arguments: Option<String>,
     #[serde(rename = "javaVersion")]
@@ -41,17 +38,15 @@ pub struct VersionDownloads {
 
 #[derive(Deserialize, Clone)]
 pub struct Download {
-    pub url:  String,
+    pub url: String,
     pub sha1: String,
-    pub size: u64,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct Library {
-    pub name:      String,
+    pub name: String,
     pub downloads: Option<LibraryDownloads>,
-    pub rules:     Option<Vec<Rule>>,
-    pub url:       Option<String>,
+    pub rules: Option<Vec<Rule>>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -61,16 +56,15 @@ pub struct LibraryDownloads {
 
 #[derive(Deserialize, Clone)]
 pub struct LibraryArtifact {
-    pub url:  String,
+    pub url: String,
     pub path: String,
     pub sha1: String,
-    pub size: u64,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct Rule {
     pub action: String,
-    pub os:     Option<OsRule>,
+    pub os: Option<OsRule>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -80,7 +74,7 @@ pub struct OsRule {
 
 #[derive(Deserialize, Clone)]
 pub struct AssetIndex {
-    pub id:  String,
+    pub id: String,
     pub url: String,
 }
 
@@ -92,18 +86,17 @@ pub struct AssetIndexFile {
 #[derive(Deserialize)]
 pub struct Asset {
     pub hash: String,
-    pub size: u64,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct Arguments {
     pub game: Option<Vec<serde_json::Value>>,
-    pub jvm:  Option<Vec<serde_json::Value>>,
+    pub jvm: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Serialize)]
 pub struct InstallResult {
-    pub success:    bool,
+    pub success: bool,
     pub version_id: String,
-    pub game_dir:   String,
+    pub game_dir: String,
 }

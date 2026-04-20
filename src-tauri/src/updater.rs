@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::fs;
 
@@ -26,8 +25,15 @@ static GLOBAL_UPDATE_URL: std::sync::Mutex<Option<String>> = std::sync::Mutex::n
 
 #[tauri::command]
 pub async fn check_updates(app: AppHandle) -> Result<UpdateCheck, String> {
+    #[cfg(debug_assertions)]
+    return Ok(UpdateCheck {
+        status: "up_to_date".into(),
+        version: None,
+    });
+
     let client = reqwest::Client::builder()
         .user_agent("VoxuraLauncher Updater")
+        .timeout(std::time::Duration::from_secs(5))
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -58,7 +64,22 @@ pub async fn check_updates(app: AppHandle) -> Result<UpdateCheck, String> {
     let current_version = app.package_info().version.to_string();
     let release_version = release.tag_name.trim_start_matches('v').to_string();
 
-    if release_version == current_version {
+    let parse_ver = |v: &str| -> Vec<u32> {
+        v.split('.').filter_map(|s| s.parse().ok()).collect()
+    };
+    
+    let c_parts = parse_ver(&current_version);
+    let r_parts = parse_ver(&release_version);
+
+    let mut is_newer = false;
+    for i in 0..std::cmp::max(c_parts.len(), r_parts.len()) {
+        let c = c_parts.get(i).unwrap_or(&0);
+        let r = r_parts.get(i).unwrap_or(&0);
+        if r > c { is_newer = true; break; }
+        if r < c { break; }
+    }
+
+    if !is_newer {
         return Ok(UpdateCheck {
             status: "up_to_date".into(),
             version: Some(release_version),
@@ -93,7 +114,7 @@ pub async fn check_updates(app: AppHandle) -> Result<UpdateCheck, String> {
 }
 
 #[tauri::command]
-pub async fn download_and_install_update(app: AppHandle) -> Result<(), String> {
+pub async fn download_and_install_update(_app: AppHandle) -> Result<(), String> {
     let download_url = {
         GLOBAL_UPDATE_URL
             .lock()

@@ -6,8 +6,6 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(windows)]
-use std::os::windows::process::CommandExt;
-
 use super::download::get_game_dir;
 use super::java::find_java;
 use super::types::{Arguments, VersionManifest};
@@ -111,7 +109,7 @@ pub async fn launch_instance(
             natives_dir.to_string_lossy().to_string(),
         ),
         ("${launcher_name}", "VoxuraLauncher".to_string()),
-        ("${launcher_version}", "1.1.2".to_string()),
+        ("${launcher_version}", "1.1.3".to_string()),
         ("${classpath}", classpath.clone()),
         ("${classpath_separator}", sep.to_string()),
         (
