@@ -109,7 +109,7 @@ pub async fn launch_instance(
             natives_dir.to_string_lossy().to_string(),
         ),
         ("${launcher_name}", "VoxuraLauncher".to_string()),
-        ("${launcher_version}", "1.1.3".to_string()),
+        ("${launcher_version}", "1.1.4".to_string()),
         ("${classpath}", classpath.clone()),
         ("${classpath_separator}", sep.to_string()),
         (
@@ -756,18 +756,8 @@ fn build_classpath(
     };
 
     let mut paths: Vec<String> = Vec::new();
-    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-    let add_path =
-        |paths: &mut Vec<String>, seen: &mut std::collections::HashSet<String>, p: PathBuf| {
-            let key = p.to_string_lossy().to_string();
-            if !seen.contains(&key) {
-                seen.insert(key.clone());
-                if p.exists() {
-                    paths.push(key);
-                }
-            }
-        };
+    let mut seen_packages: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut seen_paths: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for lib in &manifest.libraries {
         if let Some(rules) = &lib.rules {
@@ -797,17 +787,42 @@ fn build_classpath(
             }
         }
 
+        let coords: Vec<&str> = lib.name.split(':').collect();
+        let package_key = if coords.len() >= 2 {
+            format!("{}:{}", coords[0], coords[1])
+        } else {
+            lib.name.clone()
+        };
+
+        if seen_packages.contains(&package_key) {
+            continue;
+        }
+
+        let mut lib_path = None;
+
         if let Some(downloads) = &lib.downloads {
             if let Some(artifact) = &downloads.artifact {
                 if !artifact.path.is_empty() {
-                    add_path(&mut paths, &mut seen, libs_dir.join(&artifact.path));
-                    continue;
+                    lib_path = Some(libs_dir.join(&artifact.path));
                 }
             }
         }
 
-        if let Some(path) = super::loaders::fabric::maven_name_to_path(&lib.name) {
-            add_path(&mut paths, &mut seen, libs_dir.join(&path));
+        if lib_path.is_none() {
+            if let Some(path) = super::loaders::fabric::maven_name_to_path(&lib.name) {
+                lib_path = Some(libs_dir.join(&path));
+            }
+        }
+
+        if let Some(p) = lib_path {
+            let p_str = p.to_string_lossy().to_string();
+            if !seen_paths.contains(&p_str) {
+                seen_packages.insert(package_key);
+                seen_paths.insert(p_str.clone());
+                if p.exists() {
+                    paths.push(p_str);
+                }
+            }
         }
     }
 
@@ -821,8 +836,8 @@ fn build_classpath(
 
         if client_jar.exists() {
             let key = client_jar.to_string_lossy().to_string();
-            if !seen.contains(&key) {
-                seen.insert(key.clone());
+            if !seen_paths.contains(&key) {
+                seen_paths.insert(key.clone());
                 paths.push(key);
             }
         } else if let Some(ref parent_id) = manifest.inherits_from {
@@ -832,8 +847,8 @@ fn build_classpath(
                 .join(format!("{parent_id}.jar"));
             if vanilla_jar.exists() {
                 let key = vanilla_jar.to_string_lossy().to_string();
-                if !seen.contains(&key) {
-                    seen.insert(key.clone());
+                if !seen_paths.contains(&key) {
+                    seen_paths.insert(key.clone());
                     paths.push(key);
                 }
             }
