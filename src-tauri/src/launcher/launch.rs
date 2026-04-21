@@ -109,7 +109,7 @@ pub async fn launch_instance(
             natives_dir.to_string_lossy().to_string(),
         ),
         ("${launcher_name}", "VoxuraLauncher".to_string()),
-        ("${launcher_version}", "1.1.4".to_string()),
+        ("${launcher_version}", "1.1.5".to_string()),
         ("${classpath}", classpath.clone()),
         ("${classpath_separator}", sep.to_string()),
         (
@@ -788,7 +788,9 @@ fn build_classpath(
         }
 
         let coords: Vec<&str> = lib.name.split(':').collect();
-        let package_key = if coords.len() >= 2 {
+        let package_key = if coords.len() == 4 {
+            format!("{}:{}:{}", coords[0], coords[1], coords[3])
+        } else if coords.len() >= 2 {
             format!("{}:{}", coords[0], coords[1])
         } else {
             lib.name.clone()
