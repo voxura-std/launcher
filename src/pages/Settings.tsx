@@ -182,7 +182,7 @@ export default function Settings() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                  <div style={{ flex: 1 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>Version actuelle</h3>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>v1.1.5</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>v1.1.6</p>
                  </div>
                  <button 
                     className="btn-ghost" 

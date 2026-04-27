@@ -365,12 +365,14 @@ async fn launch_instance_cmd(
         .and_then(|v| serde_json::from_value(v).ok())
         .ok_or("Compte introuvable")?;
 
-    let mc_token = store
-        .get(format!("tokens:{active_id}"))
-        .and_then(|v| serde_json::from_value::<crate::auth::types::StoredTokens>(v).ok())
-        .and_then(|t| t.mc_token)
-        .unwrap_or_else(|| "0".to_string());
-
+    let mc_token = if account.kind == crate::auth::types::AccountKind::Microsoft {
+        match auth::microsoft::ensure_valid_token(&app, &active_id).await {
+            Ok(token) => token,
+            Err(e) => return Err(format!("Erreur de session Microsoft : {e}")),
+        }
+    } else {
+        "0".to_string()
+    };
     if !download::is_version_installed(&app, &instance.mc_version) {
         download::install_version(&app, &instance.mc_version).await?;
     }

@@ -281,3 +281,89 @@ fn unix_now() -> u64 {
         .unwrap_or_default()
         .as_secs()
 }
+
+pub async fn refresh_ms_token(
+    client: &Client,
+    refresh_token: &str,
+) -> Result<(String, Option<String>), String> {
+    let resp = client
+        .post(TOKEN_URL)
+        .form(&[
+            ("client_id", CLIENT_ID),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token),
+            ("redirect_uri", REDIRECT_URI),
+        ])
+        .send()
+        .await
+        .map_err(|e| format!("Erreur réseau refresh token : {e}"))?;
+
+    let status = resp.status().as_u16();
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("Lecture refresh token : {e}"))?;
+
+    if status != 200 {
+        return Err(format!("Refresh MS HTTP {status} : {text}"));
+    }
+
+    let json: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("Refresh token invalide ({e}) : {text}"))?;
+
+    let access_token = json["access_token"]
+        .as_str()
+        .ok_or_else(|| format!("access_token absent : {text}"))?
+        .to_string();
+
+    let new_refresh_token = json["refresh_token"].as_str().map(|s| s.to_string());
+
+    Ok((access_token, new_refresh_token))
+}
+
+pub async fn ensure_valid_token(
+    app: &tauri::AppHandle,
+    account_id: &str,
+) -> Result<String, String> {
+    use tauri_plugin_store::StoreExt;
+
+    let store = app
+        .store("accounts.json")
+        .map_err(|e| format!("Store inaccessible : {e}"))?;
+
+    let tokens_val = store
+        .get(format!("tokens:{account_id}"))
+        .ok_or("Tokens introuvables. Vous devez vous reconnecter.")?;
+
+    let mut tokens: StoredTokens =
+        serde_json::from_value(tokens_val).map_err(|_| "Tokens invalides. Vous devez vous reconnecter.")?;
+
+    if unix_now() + 3600 >= tokens.expires_at {
+        if let Some(refresh_token) = &tokens.refresh_token {
+            let client = Client::new();
+            let (new_access, new_refresh) = refresh_ms_token(&client, refresh_token).await?;
+
+            let (xbl, uhs) = authenticate_xbox(&client, &new_access).await?;
+            let xsts = authenticate_xsts(&client, &xbl).await?;
+            let mc_token = authenticate_minecraft(&client, &xsts, &uhs).await?;
+
+            tokens.access_token = new_access;
+            if new_refresh.is_some() {
+                tokens.refresh_token = new_refresh;
+            }
+            tokens.mc_token = Some(mc_token.clone());
+            tokens.expires_at = unix_now() + 86400;
+
+            store.set(format!("tokens:{account_id}"), serde_json::json!(tokens));
+            let _ = store.save();
+
+            return Ok(mc_token);
+        } else {
+            return Err("Session expirée (aucun Refresh Token disponible). Reconnectez-vous manuellement.".to_string());
+        }
+    }
+
+    tokens
+        .mc_token
+        .ok_or_else(|| "Jeton Minecraft manquant. Veuillez vous reconnecter.".to_string())
+}
