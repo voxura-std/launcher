@@ -14,8 +14,19 @@ pub struct Instance {
     pub java_args: Option<String>,
     pub ram_mb: u32,
     pub icon_path: Option<String>,
+    pub is_voxura: Option<bool>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoxuraRemoteInstance {
+    pub id: String,
+    pub name: String,
+    pub mc_version: String,
+    pub loader: Loader,
+    pub loader_version: Option<String>,
+    pub icon_url: String,
+    pub archive_url: String,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Loader {

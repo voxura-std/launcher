@@ -87,7 +87,12 @@ pub async fn launch_instance(
             ))?
     };
 
-    let instance_dir = game_dir.join("instances").join(&instance.folder_name);
+    let base_dir = if instance.is_voxura.unwrap_or(false) {
+        "vox_instances"
+    } else {
+        "instances"
+    };
+    let instance_dir = game_dir.join(base_dir).join(&instance.folder_name);
     tokio::fs::create_dir_all(&instance_dir).await.ok();
 
     let natives_dir = game_dir.join("versions").join(&version_id).join("natives");
@@ -109,7 +114,7 @@ pub async fn launch_instance(
             natives_dir.to_string_lossy().to_string(),
         ),
         ("${launcher_name}", "VoxuraLauncher".to_string()),
-        ("${launcher_version}", "1.1.6".to_string()),
+        ("${launcher_version}", "1.2.0".to_string()),
         ("${classpath}", classpath.clone()),
         ("${classpath_separator}", sep.to_string()),
         (

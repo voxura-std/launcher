@@ -242,39 +242,93 @@ export default function Launch() {
               {instances.length === 0 ? (
                  <div style={{ padding: '10px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>Aucune instance disponible</div>
               ) : (
-                 instances.map(inst => (
-                   <div key={inst.id} onClick={() => { setSelectedInstanceId(inst.id); setShowInstanceMenu(false) }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-                          borderRadius: 8, cursor: 'pointer',
-                          background: selectedInstanceId === inst.id ? 'rgba(74,222,128,0.15)' : 'transparent'
-                        }}
-                        onMouseEnter={e => { if (selectedInstanceId !== inst.id) e.currentTarget.style.background='rgba(255,255,255,0.05)' }}
-                        onMouseLeave={e => { if (selectedInstanceId !== inst.id) e.currentTarget.style.background='transparent' }}
-                   >
-                     <div style={{ position: 'relative' }}>
-                       <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                          {inst.icon_path ? (
-                             <img src={convertFileSrc(inst.icon_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                             <Layers size={11} color="var(--text-muted)"/>
-                          )}
+                 <>
+                   {instances.filter(i => !i.is_voxura).length > 0 && (
+                     <>
+                       <div style={{ padding: '5px 10px 4px', fontSize: 10, fontWeight: 700, color: 'rgb(74, 222, 128)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                         Mes instances
                        </div>
-                       {runningIds.has(inst.id) && (
-                         <div style={{
-                           position: 'absolute', bottom: -1, right: -1,
-                           width: 7, height: 7, borderRadius: '50%',
-                           background: '#22c55e',
-                           border: '2px solid #121212',
-                         }} />
+                       {instances.filter(i => !i.is_voxura).map(inst => (
+                         <div key={inst.id} onClick={() => { setSelectedInstanceId(inst.id); setShowInstanceMenu(false) }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                                borderRadius: 8, cursor: 'pointer',
+                                background: selectedInstanceId === inst.id ? 'rgba(74,222,128,0.15)' : 'transparent'
+                              }}
+                              onMouseEnter={e => { if (selectedInstanceId !== inst.id) e.currentTarget.style.background='rgba(255,255,255,0.05)' }}
+                              onMouseLeave={e => { if (selectedInstanceId !== inst.id) e.currentTarget.style.background='transparent' }}
+                         >
+                           <div style={{ position: 'relative' }}>
+                             <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                {inst.icon_path ? (
+                                   <img src={convertFileSrc(inst.icon_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                   <Layers size={11} color="var(--text-muted)"/>
+                                )}
+                             </div>
+                             {runningIds.has(inst.id) && (
+                               <div style={{
+                                 position: 'absolute', bottom: -1, right: -1,
+                                 width: 7, height: 7, borderRadius: '50%',
+                                 background: '#22c55e',
+                                 border: '2px solid #121212',
+                               }} />
+                             )}
+                           </div>
+                           <div style={{ flex: 1, fontSize: 12.5, color: selectedInstanceId === inst.id ? '#4ade80' : 'var(--text-main)', fontWeight: 500 }}>
+                              {inst.name}
+                           </div>
+                           {selectedInstanceId === inst.id && <Check size={14} color="#4ade80" />}
+                         </div>
+                       ))}
+                     </>
+                   )}
+
+
+                   {instances.filter(i => i.is_voxura).length > 0 && (
+                     <>
+                       {instances.filter(i => !i.is_voxura).length > 0 && (
+                         <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '4px 6px' }} />
                        )}
-                     </div>
-                     <div style={{ flex: 1, fontSize: 12.5, color: selectedInstanceId === inst.id ? '#4ade80' : 'var(--text-main)', fontWeight: 500 }}>
-                        {inst.name}
-                     </div>
-                     {selectedInstanceId === inst.id && <Check size={14} color="#4ade80" />}
-                   </div>
-                 ))
+                       <div style={{ padding: '5px 10px 4px', fontSize: 10, fontWeight: 700, color: '#c084fc', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                         Instances Voxura
+                       </div>
+                       {instances.filter(i => i.is_voxura).map(inst => (
+                         <div key={inst.id} onClick={() => { setSelectedInstanceId(inst.id); setShowInstanceMenu(false) }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                                borderRadius: 8, cursor: 'pointer',
+                                background: selectedInstanceId === inst.id ? 'rgba(168,85,247,0.15)' : 'transparent'
+                              }}
+                              onMouseEnter={e => { if (selectedInstanceId !== inst.id) e.currentTarget.style.background='rgba(255,255,255,0.05)' }}
+                              onMouseLeave={e => { if (selectedInstanceId !== inst.id) e.currentTarget.style.background='transparent' }}
+                         >
+                           <div style={{ position: 'relative' }}>
+                             <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(168,85,247,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                {inst.icon_path ? (
+                                   <img src={convertFileSrc(inst.icon_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                   <Layers size={11} color="#c084fc"/>
+                                )}
+                             </div>
+                             {runningIds.has(inst.id) && (
+                               <div style={{
+                                 position: 'absolute', bottom: -1, right: -1,
+                                 width: 7, height: 7, borderRadius: '50%',
+                                 background: '#22c55e',
+                                 border: '2px solid #121212',
+                               }} />
+                             )}
+                           </div>
+                           <div style={{ flex: 1, fontSize: 12.5, color: selectedInstanceId === inst.id ? '#c084fc' : 'var(--text-main)', fontWeight: 500 }}>
+                              {inst.name}
+                           </div>
+                           {selectedInstanceId === inst.id && <Check size={14} color="#c084fc" />}
+                         </div>
+                       ))}
+                     </>
+                   )}
+                 </>
               )}
             </div>
           )}

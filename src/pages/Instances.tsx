@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import {
   Plus, LayoutGrid,
-  Layers, FolderPlus, Trash2, Play, Square,
+  Layers, Trash2, Play, Square,
   ChevronDown, ChevronLeft, ChevronRight, X, Check,
-  Loader2, AlertCircle, Package
+  Loader2, AlertCircle, Package, Download, Server
 } from 'lucide-react'
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
@@ -13,6 +13,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useOffline } from '../hooks/useOffline'
 import ProgressOverlay, { type Progress } from '../components/ProgressOverlay'
 
+export type VoxuraRemoteInstance = {
+  id: string
+  name: string
+  mc_version: string
+  loader: LoaderType
+  loader_version: string | null
+  icon_url: string
+  archive_url: string
+}
 
 type LoaderType = 'vanilla' | 'fabric' | 'forge' | 'neoforge' | 'quilt'
 
@@ -627,20 +636,23 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
       <div 
       onClick={() => navigate(`/instances/${instance.id}`)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 14,
-        padding: '12px 14px', borderRadius: 12,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+        padding: '18px 14px', borderRadius: 16,
         background: isRunning ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.04)',
         border: `1px solid ${isRunning ? 'rgba(34,197,94,0.20)' : 'rgba(255,255,255,0.08)'}`,
         transition: 'all 0.15s',
         cursor: 'pointer',
+        position: 'relative',
+        textAlign: 'center'
       }}>
+        
         <div style={{ position: 'relative' }}>
           <div style={{
-            width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+            width: 72, height: 72, borderRadius: 16, flexShrink: 0,
             background: `${loaderColor}18`,
             border: `1px solid ${loaderColor}33`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, fontWeight: 800, color: loaderColor, fontFamily: 'monospace',
+            fontSize: 24, fontWeight: 800, color: loaderColor, fontFamily: 'monospace',
             overflow: 'hidden'
           }}>
             {instance.icon_path ? (
@@ -652,34 +664,35 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
           {isRunning && (
             <div style={{
               position: 'absolute', bottom: -2, right: -2,
-              width: 12, height: 12, borderRadius: '50%',
+              width: 14, height: 14, borderRadius: '50%',
               background: '#22c55e',
-              border: '2px solid rgba(15, 30, 22,0.97)',
+              border: '3px solid rgba(15, 30, 22,0.97)',
             }} />
           )}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
           <p style={{
-            fontSize: 13.5, fontWeight: 600, color: 'var(--text-main)',
+            fontSize: 14, fontWeight: 600, color: 'var(--text-main)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {instance.name}
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
             <span style={{
-              fontSize: 11.5, color: 'var(--text-faint)',
-              background: 'rgba(255,255,255,0.06)', padding: '1px 7px', borderRadius: 5,
+              fontSize: 11, color: 'var(--text-faint)',
+              background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: 6,
             }}>
               {instance.mc_version}
             </span>
-            <span style={{ fontSize: 11.5, color: loaderColor, fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: loaderColor, fontWeight: 600 }}>
               {loaderLabel}
             </span>
+          </div>
             {isRunning && (
-              <span style={{
+              <div style={{
                 fontSize: 11, color: '#4ade80', fontWeight: 600,
-                display: 'flex', alignItems: 'center', gap: 4,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6
               }}>
                 <span style={{
                   width: 6, height: 6, borderRadius: '50%',
@@ -687,16 +700,15 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
                   animation: 'pulse 2s infinite',
                 }} />
                 En cours
-              </span>
+              </div>
             )}
-          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 8, width: '100%', marginTop: 'auto' }}>
           {isRunning ? (
             <button onClick={e => {e.stopPropagation(); setShowStopConfirm(true)}} style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 14px', borderRadius: 9, fontSize: 12, fontWeight: 600,
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '8px', borderRadius: 10, fontSize: 12, fontWeight: 600,
               background: 'rgba(239,68,68,0.15)',
               border: '1px solid rgba(239,68,68,0.35)',
               color: '#f87171', cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
@@ -711,20 +723,20 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
               e.currentTarget.style.borderColor = 'rgba(239,68,68,0.35)'
             }}
             >
-              <Square size={12} fill="currentColor" strokeWidth={0} />
+              <Square size={13} fill="currentColor" strokeWidth={0} />
               Stop
             </button>
           ) : (
             <button className="btn-primary"
-              style={{ padding: '6px 14px', fontSize: 12, borderRadius: 9 }}
+              style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 10, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}
               onClick={e => {e.stopPropagation(); onLaunch(instance.id)}}
               disabled={launching}
             >
               {launching
-                ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
-                : <Play size={12} fill="currentColor" strokeWidth={0} />
+                ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                : <Play size={13} fill="currentColor" strokeWidth={0} />
               }
-              {launching ? 'Lancement…' : 'Lancer'}
+              {launching ? 'Lancement…' : 'Jouer'}
             </button>
           )}
 
@@ -732,24 +744,26 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
             onClick={e => { e.stopPropagation(); setShowDeleteConfirm(true) }}
             disabled={isRunning}
             style={{
-              padding: '7px', borderRadius: 9,
-              background: 'transparent', border: '1px solid transparent',
-              color: isRunning ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.45)',
+              padding: '8px', borderRadius: 10,
+              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+              color: isRunning ? 'rgba(239,68,68,0.15)' : 'var(--text-muted)',
               cursor: isRunning ? 'not-allowed' : 'pointer',
-              outline: 'none', display: 'flex', alignItems: 'center', transition: 'all 0.15s',
+              outline: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
             }}
             onMouseEnter={e => {
               if (!isRunning) {
-                e.currentTarget.style.background = 'rgba(239,68,68,0.10)'
-                e.currentTarget.style.color = 'rgba(239,68,68,0.80)'
+                e.currentTarget.style.background = 'rgba(239,68,68,0.15)'
+                e.currentTarget.style.color = '#f87171'
+                e.currentTarget.style.borderColor = 'rgba(239,68,68,0.30)'
               }
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = isRunning ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.45)'
+              e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+              e.currentTarget.style.color = isRunning ? 'rgba(239,68,68,0.15)' : 'var(--text-muted)'
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
             }}
           >
-            <Trash2 size={14} />
+            <Trash2 size={15} />
           </button>
         </div>
       </div>
@@ -758,12 +772,259 @@ function InstanceCard({ instance, onDelete, onLaunch, onStop, launching, isRunni
 }
 
 
+function RemoteInstanceCard({ instance, onInstall, isInstalled, installing, localInstance, onLaunch, onStop, onDelete, launching, isRunning }: {
+  instance: VoxuraRemoteInstance
+  localInstance?: Instance
+  onInstall: (instance: VoxuraRemoteInstance) => void
+  isInstalled: boolean
+  installing: boolean
+  onLaunch: (id: string) => void
+  onStop: (id: string) => void
+  onDelete: (id: string) => void
+  launching: boolean
+  isRunning: boolean
+}) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showStopConfirm, setShowStopConfirm] = useState(false)
+
+  const loaderColor = LOADER_COLOR[instance.loader as LoaderType] || '#fff'
+  const loaderLabel = LOADERS.find(l => l.id === instance.loader)?.label ?? instance.loader
+
+  return (
+    <>
+      <AnimatePresence>
+        {showStopConfirm && localInstance && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 300,
+              background: 'rgba(0,0,0,0.70)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={{
+                width: 400, padding: '24px 26px',
+                background: 'rgba(15, 30, 22,0.97)',
+                border: '1px solid rgba(239,68,68,0.25)',
+                borderRadius: 16,
+              }}
+            >
+              <p style={{ fontSize: 13.5, color: '#f87171', marginBottom: 12 }}>
+                L'instance Voxura <b>{instance.name}</b> est en cours d'exécution.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setShowStopConfirm(false)} style={{ flex: 1, padding: '9px', borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', outline: 'none' }}>Annuler</button>
+                <button onClick={() => { onStop(localInstance.id); setShowStopConfirm(false) }} style={{ flex: 1, padding: '9px', borderRadius: 10, background: 'rgba(239,68,68,0.80)', border: '1px solid rgba(239,68,68,0.50)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', outline: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Square size={13} fill="currentColor" strokeWidth={0} />Forcer l'arrêt</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDeleteConfirm && localInstance && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 300,
+              background: 'rgba(0,0,0,0.70)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={{
+                width: 400, padding: '24px 26px',
+                background: 'rgba(15, 30, 22,0.97)',
+                border: '1px solid rgba(239,68,68,0.25)',
+                borderRadius: 16,
+              }}
+            >
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Trash2 size={22} color="#f87171" />
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 6 }}>Supprimer l'instance Voxura "{instance.name}" ?</p>
+            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 20 }}>Cette action désinstallera l'instance Voxura. Elle sera toujours disponible en téléchargement dans la liste.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowDeleteConfirm(false)} style={{ flex: 1, padding: '9px', borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', outline: 'none' }}>Annuler</button>
+              <button onClick={() => { onDelete(localInstance.id); setShowDeleteConfirm(false) }} style={{ flex: 1, padding: '9px', borderRadius: 10, background: 'rgba(239,68,68,0.75)', border: '1px solid rgba(239,68,68,0.40)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', outline: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Trash2 size={13} />Supprimer</button>
+            </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div 
+        style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+          padding: '18px 14px', borderRadius: 16,
+          background: isRunning ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)',
+          border: `1px solid ${isRunning ? 'rgba(34,197,94,0.20)' : 'rgba(255,255,255,0.06)'}`,
+          transition: 'all 0.15s',
+          textAlign: 'center',
+          position: 'relative'
+        }}>
+          
+          <div style={{ position: 'relative' }}>
+            <div style={{
+              width: 72, height: 72, borderRadius: 16, flexShrink: 0,
+              background: `${loaderColor}18`,
+              border: `1px solid ${loaderColor}33`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 24, fontWeight: 800, color: loaderColor, fontFamily: 'monospace',
+              overflow: 'hidden'
+            }}>
+              {instance.icon_url ? (
+                  <img src={instance.icon_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                  <span>{instance.name.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+            {isRunning && (
+              <div style={{
+                position: 'absolute', bottom: -2, right: -2,
+                width: 14, height: 14, borderRadius: '50%',
+                background: '#22c55e',
+                border: '3px solid rgba(15, 30, 22,0.97)',
+              }} />
+            )}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
+            <p style={{
+              fontSize: 14, fontWeight: 600, color: 'var(--text-main)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {instance.name}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+              <span style={{
+                fontSize: 11, color: 'var(--text-faint)',
+                background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: 6,
+              }}>
+                {instance.mc_version}
+              </span>
+              <span style={{ fontSize: 11, color: loaderColor, fontWeight: 600 }}>
+                {loaderLabel}
+              </span>
+            </div>
+            {isRunning && (
+              <div style={{
+                fontSize: 11, color: '#4ade80', fontWeight: 600,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6
+              }}>
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: '#22c55e',
+                  animation: 'pulse 2s infinite',
+                }} />
+                En cours
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, width: '100%', marginTop: 'auto' }}>
+            {isInstalled && localInstance ? (
+              <>
+                {isRunning ? (
+                  <button onClick={e => {e.stopPropagation(); setShowStopConfirm(true)}} style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: '8px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                    background: 'rgba(239,68,68,0.15)',
+                    border: '1px solid rgba(239,68,68,0.35)',
+                    color: '#f87171', cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
+                  }}>
+                    <Square size={13} fill="currentColor" strokeWidth={0} /> Stop
+                  </button>
+                ) : (
+                  <button className="btn-primary"
+                    style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 10, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}
+                    onClick={e => {e.stopPropagation(); onLaunch(localInstance.id)}}
+                    disabled={launching}
+                  >
+                    {launching ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Play size={13} fill="currentColor" strokeWidth={0} />}
+                    {launching ? 'Lancement…' : 'Jouer'}
+                  </button>
+                )}
+                
+                <button
+                  onClick={e => { e.stopPropagation(); setShowDeleteConfirm(true) }}
+                  disabled={isRunning}
+                  style={{
+                    padding: '8px', borderRadius: 10,
+                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+                    color: isRunning ? 'rgba(239,68,68,0.15)' : 'var(--text-muted)',
+                    cursor: isRunning ? 'not-allowed' : 'pointer',
+                    outline: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => {
+                    if (!isRunning) {
+                      e.currentTarget.style.background = 'rgba(239,68,68,0.15)'
+                      e.currentTarget.style.color = '#f87171'
+                      e.currentTarget.style.borderColor = 'rgba(239,68,68,0.30)'
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+                    e.currentTarget.style.color = isRunning ? 'rgba(239,68,68,0.15)' : 'var(--text-muted)'
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
+                  }}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </>
+            ) : (
+              <button className="btn-primary"
+                style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 10, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}
+                onClick={() => onInstall(instance)}
+                disabled={installing}
+              >
+                {installing
+                  ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                  : <Download size={13} strokeWidth={2} />
+                }
+                {installing ? 'Téléchargement…' : 'Installer'}
+              </button>
+            )}
+          </div>
+      </div>
+    </>
+  )
+}
+
 export default function Instances() {
-  const { instances, runningIds, createInstance, deleteInstance, stopInstance } = useInstances()
+  const { instances, runningIds, createInstance, deleteInstance, stopInstance, reload: reloadInstances } = useInstances()
   const offline = useOffline()
   const [showModal, setShowModal] = useState(false)
   const [progress, setProgress]   = useState<Progress | null>(null)
   const [launching, setLaunching] = useState<string | null>(null)
+
+  const [activeTab, setActiveTab] = useState<'local' | 'remote'>('local')
+  const [remoteInstances, setRemoteInstances] = useState<VoxuraRemoteInstance[]>([])
+  const [loadingRemote, setLoadingRemote] = useState(false)
+  const [installingRemote, setInstallingRemote] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (activeTab === 'remote' && remoteInstances.length === 0 && !offline) {
+      setLoadingRemote(true)
+      invoke<VoxuraRemoteInstance[]>('fetch_voxura_instances')
+        .then(res => setRemoteInstances(res))
+        .catch(e => console.error("Erreur récupération Voxura:", e))
+        .finally(() => setLoadingRemote(false))
+    }
+  }, [activeTab, offline])
 
   useEffect(() => {
     const unlisten = listen<Progress>('launcher://progress', ({ payload }) => {
@@ -774,6 +1035,25 @@ export default function Instances() {
     })
     return () => { unlisten.then(f => f()) }
   }, [])
+
+  const localInstances = instances.filter(i => !i.is_voxura)
+
+  const handleInstallRemote = async (remoteInstance: VoxuraRemoteInstance) => {
+    setInstallingRemote(remoteInstance.id)
+    try {
+      await invoke('install_voxura_instance', { instance: remoteInstance })
+      await reloadInstances()
+    } catch (e) {
+      alert(String(e))
+    } finally {
+      setInstallingRemote(null)
+    }
+  }
+
+  const handleDeleteVoxura = async (instanceId: string) => {
+    await deleteInstance(instanceId)
+    await reloadInstances()
+  }
 
   const handleCreate = async (
     name: string,
@@ -816,21 +1096,31 @@ export default function Instances() {
         padding: '8px 6px',
         display: 'flex', flexDirection: 'column', gap: 2,
       }}>
-        <button style={{
+        <button 
+          onClick={() => setActiveTab('local')}
+          style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 11px', width: '100%', textAlign: 'left',
-          borderRadius: 9, border: '1px solid rgba(74, 222, 128,0.25)',
-          background: 'rgba(74, 222, 128,0.18)',
-          color: '#86efac', fontSize: 12.5, fontWeight: 600,
+          borderRadius: 9, border: activeTab === 'local' ? '1px solid rgba(74, 222, 128,0.25)' : '1px solid transparent',
+          background: activeTab === 'local' ? 'rgba(74, 222, 128,0.18)' : 'transparent',
+          color: activeTab === 'local' ? '#86efac' : 'var(--text-muted)', fontSize: 12.5, fontWeight: 600,
           cursor: 'pointer', outline: 'none', fontFamily: 'inherit',
         }}>
           <LayoutGrid size={13} strokeWidth={2.2} />
-          Toutes les instances
+          Mes instances
         </button>
-        <div style={{ flex: 1 }} />
-        <button className="btn-ghost" style={{ width: '100%', justifyContent: 'flex-start', fontSize: 12 }}>
-          <FolderPlus size={13} strokeWidth={2} />
-          Ajouter un groupe
+        <button 
+          onClick={() => setActiveTab('remote')}
+          style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 11px', width: '100%', textAlign: 'left',
+          borderRadius: 9, border: activeTab === 'remote' ? '1px solid rgba(168, 85, 247,0.25)' : '1px solid transparent',
+          background: activeTab === 'remote' ? 'rgba(168, 85, 247,0.18)' : 'transparent',
+          color: activeTab === 'remote' ? '#c084fc' : 'var(--text-muted)', fontSize: 12.5, fontWeight: 600,
+          cursor: 'pointer', outline: 'none', fontFamily: 'inherit',
+        }}>
+          <Server size={13} strokeWidth={2.2} />
+          Instances Voxura
         </button>
       </aside>
 
@@ -849,14 +1139,14 @@ export default function Instances() {
           background: 'rgba(255,255,255,0.03)',
         }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
-            Toutes les instances
-            {instances.length > 0 && (
+            {activeTab === 'local' ? 'Mes instances' : 'Instances Voxura'}
+            {activeTab === 'local' && localInstances.length > 0 && (
               <span style={{
                 marginLeft: 8, fontSize: 11, color: 'var(--text-faint)',
                 background: 'rgba(255,255,255,0.08)',
                 padding: '1px 7px', borderRadius: 5,
               }}>
-                {instances.length}
+                {localInstances.length}
               </span>
             )}
           </span>
@@ -883,58 +1173,97 @@ export default function Instances() {
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-          {instances.length === 0 ? (
-            <div style={{
-              height: '100%', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', flexDirection: 'column', gap: 10,
-            }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+          {activeTab === 'local' ? (
+            localInstances.length === 0 ? (
               <div style={{
-                width: 54, height: 54, borderRadius: 15,
-                background: 'rgba(255,255,255,0.07)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                height: '100%', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', flexDirection: 'column', gap: 10,
               }}>
-                <Layers size={22} color="rgba(255,255,255,0.20)" strokeWidth={1.5} />
+                <div style={{
+                  width: 54, height: 54, borderRadius: 15,
+                  background: 'rgba(255,255,255,0.07)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Layers size={22} color="rgba(255,255,255,0.20)" strokeWidth={1.5} />
+                </div>
+                <p style={{ fontSize: 13.5, fontWeight: 500, color: 'rgba(255,255,255,0.30)' }}>
+                  Aucune instance
+                </p>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.18)' }}>
+                  Cliquer sur "Ajouter" pour commencer
+                </p>
+                <button
+                  className="btn-primary"
+                  style={{ 
+                     marginTop: 6, padding: '8px 20px', fontSize: 13,
+                     background: offline ? 'rgba(255,255,255,0.1)' : 'var(--primary)',
+                     cursor: offline ? 'not-allowed' : 'pointer',
+                     opacity: offline ? 0.6 : 1
+                  }}
+                  onClick={() => {
+                     if (offline) {
+                        alert("Création d'instance indisponible en mode hors-ligne.")
+                     } else {
+                        setShowModal(true)
+                     }
+                  }}
+                >
+                  <Plus size={14} /> Créer une instance
+                </button>
               </div>
-              <p style={{ fontSize: 13.5, fontWeight: 500, color: 'rgba(255,255,255,0.30)' }}>
-                Aucune instance
-              </p>
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.18)' }}>
-                Cliquer sur "Ajouter" pour commencer
-              </p>
-              <button
-                className="btn-primary"
-                style={{ 
-                   marginTop: 6, padding: '8px 20px', fontSize: 13,
-                   background: offline ? 'rgba(255,255,255,0.1)' : 'var(--primary)',
-                   cursor: offline ? 'not-allowed' : 'pointer',
-                   opacity: offline ? 0.6 : 1
-                }}
-                onClick={() => {
-                   if (offline) {
-                      alert("Création d'instance indisponible en mode hors-ligne.")
-                   } else {
-                      setShowModal(true)
-                   }
-                }}
-              >
-                <Plus size={14} /> Créer une instance
-              </button>
-            </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 16 }}>
+                {localInstances.map(instance => (
+                  <InstanceCard
+                    key={instance.id}
+                    instance={instance}
+                    onDelete={() => deleteInstance(instance.id)}
+                    onLaunch={handleLaunch}
+                    onStop={stopInstance}
+                    launching={launching === instance.id}
+                    isRunning={runningIds.has(instance.id)}
+                  />
+                ))}
+              </div>
+            )
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {instances.map(instance => (
-                <InstanceCard
-                  key={instance.id}
-                  instance={instance}
-                  onDelete={() => deleteInstance(instance.id)}
-                  onLaunch={handleLaunch}
-                  onStop={stopInstance}
-                  launching={launching === instance.id}
-                  isRunning={runningIds.has(instance.id)}
-                />
-              ))}
-            </div>
+            loadingRemote ? (
+              <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} color="var(--text-muted)" />
+              </div>
+            ) : remoteInstances.length === 0 ? (
+               <div style={{
+                height: '100%', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', flexDirection: 'column', gap: 10,
+              }}>
+                <Server size={32} color="rgba(255,255,255,0.20)" />
+                <p style={{ color:'var(--text-muted)', textAlign: 'center', marginTop: 10, fontSize: 13 }}>Aucune instance Voxura disponible.</p>
+                <p style={{ color:'var(--text-faint)', textAlign: 'center', fontSize: 12 }}>(Vérifie ta connexion internet ou l'état du serveur Voxura)</p>
+               </div>
+            ) : (
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 16 }}>
+                  {remoteInstances.map(ri => {
+                    const localInst = instances.find(i => i.is_voxura && i.folder_name === ri.id)
+                    const isInstalled = !!localInst
+                    return (
+                        <RemoteInstanceCard
+                          key={ri.id}
+                          instance={ri}
+                          localInstance={localInst}
+                          onInstall={handleInstallRemote}
+                          isInstalled={isInstalled}
+                          installing={installingRemote === ri.id}
+                          onLaunch={handleLaunch}
+                          onStop={stopInstance}
+                          onDelete={handleDeleteVoxura}
+                          launching={!!(localInst && launching === localInst.id)}
+                          isRunning={!!(localInst && runningIds.has(localInst.id))}
+                        />
+                    )
+                  })}
+               </div>
+            )
           )}
         </div>
       </div>

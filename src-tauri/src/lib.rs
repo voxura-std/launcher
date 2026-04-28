@@ -232,13 +232,20 @@ async fn delete_instance(
         .store("instances.json")
         .map_err(|e| format!("Store inaccessible : {e}"))?;
 
-    let folder_name: Option<String> = store
-        .get(format!("instance:{instance_id}"))
-        .and_then(|v| serde_json::from_value::<Instance>(v).ok())
-        .map(|i| i.folder_name);
+    let (folder_name, is_voxura) = match store.get(format!("instance:{instance_id}")) {
+        Some(v) => {
+            if let Ok(i) = serde_json::from_value::<Instance>(v) {
+                (Some(i.folder_name), i.is_voxura.unwrap_or(false))
+            } else {
+                (None, false)
+            }
+        }
+        None => (None, false),
+    };
 
     if let Some(folder) = folder_name {
-        let instance_dir = download::get_game_dir(&app).join("instances").join(&folder);
+        let base_dir = if is_voxura { "vox_instances" } else { "instances" };
+        let instance_dir = download::get_game_dir(&app).join(base_dir).join(&folder);
         if instance_dir.exists() {
             tokio::fs::remove_dir_all(&instance_dir)
                 .await
@@ -300,15 +307,13 @@ async fn select_custom_icon(
     if let Some(path) = file_opt {
         let path_str = path.into_path().map_err(|e| e.to_string())?;
 
-        let dest_dir = download::get_game_dir(&app).join("instances");
-        let folder_name = {
+        let (base_dir, folder_name) = {
             let list = state.0.lock().unwrap();
-            if let Some(i) = list.iter().find(|i| i.id == instance_id) {
-                i.folder_name.clone()
-            } else {
-                return Err("Instance non trouvée".to_string());
-            }
+            let instance = list.iter().find(|i| i.id == instance_id).ok_or_else(|| "Instance non trouvée".to_string())?;
+            let base_dir = if instance.is_voxura.unwrap_or(false) { "vox_instances" } else { "instances" };
+            (base_dir, instance.folder_name.clone())
         };
+        let dest_dir = download::get_game_dir(&app).join(base_dir);
 
         let dest = dest_dir.join(&folder_name).join(format!(
             "icon_{}.png",
@@ -454,6 +459,76 @@ fn get_running_instances(running_state: State<'_, RunningState>) -> Vec<String> 
 }
 
 #[tauri::command]
+async fn fetch_voxura_instances() -> Result<Vec<crate::instances::types::VoxuraRemoteInstance>, String> {
+    let client = reqwest::Client::new();
+    let url = "https://launcher.schnnurbart-studios.fr/instances.json";
+    let text = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Erreur réseau (Site) : {e}"))?
+        .text()
+        .await
+        .map_err(|e| format!("Lecture API: {e}"))?;
+
+    serde_json::from_str(&text).map_err(|e| format!("JSON invalide : {e}"))
+}
+
+#[tauri::command]
+async fn install_voxura_instance(
+    instance: crate::instances::types::VoxuraRemoteInstance,
+    app: tauri::AppHandle,
+    state: State<'_, InstancesState>,
+) -> Result<Instance, String> {
+    let client = reqwest::Client::new();
+    let game_dir = download::get_game_dir(&app);
+    let vox_dir = game_dir.join("vox_instances").join(&instance.id);
+    let temp_zip = game_dir.join(format!("{}.zip", instance.id));
+
+    download::download_file(&client, &instance.archive_url, &temp_zip).await?;
+
+    if let Ok(file) = std::fs::File::open(&temp_zip) {
+        if let Ok(mut archive) = zip::ZipArchive::new(file) {
+            let _ = archive.extract(&vox_dir);
+        }
+    }
+    let _ = tokio::fs::remove_file(&temp_zip).await;
+
+    let icon_path = vox_dir.join("icon.png");
+    let _ = download::download_file(&client, &instance.icon_url, &icon_path).await;
+
+    let mut icon_ret = None;
+    if icon_path.exists() {
+        icon_ret = Some(icon_path.to_string_lossy().to_string());
+    }
+
+    let inst = Instance {
+        id: instance.id.clone(),
+        name: instance.name.clone(),
+        folder_name: instance.id.clone(),
+        mc_version: instance.mc_version.clone(),
+        loader: instance.loader.clone(),
+        loader_version: instance.loader_version.clone(),
+        created_at: crate::instances::manager::unix_now(),
+        last_played: None,
+        play_time: 0,
+        java_args: None,
+        ram_mb: 4096,
+        icon_path: icon_ret,
+        is_voxura: Some(true),
+    };
+
+    let store = app
+        .store("instances.json")
+        .map_err(|e| format!("Store inaccessible : {e}"))?;
+    store.set(format!("instance:{}", inst.id), json!(inst));
+    let _ = store.save();
+
+    state.0.lock().unwrap().push(inst.clone());
+    Ok(inst)
+}
+
+#[tauri::command]
 async fn check_java(required_version: u32) -> java::JavaInfo {
     java::get_java_info(required_version)
 }
@@ -525,6 +600,8 @@ pub fn run() {
             fetch_neoforge_versions,
             fetch_forge_versions,
             fetch_quilt_versions,
+            fetch_voxura_instances,
+            install_voxura_instance,
             create_instance,
             load_instances,
             delete_instance,

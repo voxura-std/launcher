@@ -208,6 +208,7 @@ pub fn create_instance(
         java_args: None,
         ram_mb: 2048,
         icon_path: None,
+        is_voxura: Some(false),
     })
 }
 

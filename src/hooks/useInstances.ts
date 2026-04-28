@@ -15,6 +15,7 @@ export interface Instance {
   java_args: string | null
   ram_mb: number
   icon_path: string | null
+  is_voxura?: boolean
 }
 
 export interface McVersion {

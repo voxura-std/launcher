@@ -236,7 +236,7 @@ async fn download_text(client: &Client, url: &str) -> Result<String, String> {
         .map_err(|e| format!("Lecture réponse : {e}"))
 }
 
-async fn download_file(client: &Client, url: &str, path: &Path) -> Result<(), String> {
+pub async fn download_file(client: &Client, url: &str, path: &Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent)
             .await
