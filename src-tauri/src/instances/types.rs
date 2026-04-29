@@ -26,6 +26,7 @@ pub struct VoxuraRemoteInstance {
     pub loader_version: Option<String>,
     pub icon_url: String,
     pub archive_url: String,
+    pub whitelist: Option<Vec<String>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]

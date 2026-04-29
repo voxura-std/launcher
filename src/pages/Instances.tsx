@@ -11,6 +11,7 @@ import { useInstances, type Instance, type McVersion, type LoaderVersion } from 
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useOffline } from '../hooks/useOffline'
+import { useAccounts } from '../hooks/useAccounts'
 import ProgressOverlay, { type Progress } from '../components/ProgressOverlay'
 
 export type VoxuraRemoteInstance = {
@@ -21,6 +22,7 @@ export type VoxuraRemoteInstance = {
   loader_version: string | null
   icon_url: string
   archive_url: string
+  whitelist?: string[] | null
 }
 
 type LoaderType = 'vanilla' | 'fabric' | 'forge' | 'neoforge' | 'quilt'
@@ -1007,6 +1009,7 @@ function RemoteInstanceCard({ instance, onInstall, isInstalled, installing, loca
 export default function Instances() {
   const { instances, runningIds, createInstance, deleteInstance, stopInstance, reload: reloadInstances } = useInstances()
   const offline = useOffline()
+  const { activeAccount } = useAccounts()
   const [showModal, setShowModal] = useState(false)
   const [progress, setProgress]   = useState<Progress | null>(null)
   const [launching, setLaunching] = useState<string | null>(null)
@@ -1037,6 +1040,13 @@ export default function Instances() {
   }, [])
 
   const localInstances = instances.filter(i => !i.is_voxura)
+
+  // Filtrer les instances Voxura par whitelist
+  const filteredRemoteInstances = remoteInstances.filter(ri => {
+    if (!ri.whitelist || ri.whitelist.length === 0) return true
+    if (!activeAccount) return false
+    return ri.whitelist.some(name => name.toLowerCase() === activeAccount.username.toLowerCase())
+  })
 
   const handleInstallRemote = async (remoteInstance: VoxuraRemoteInstance) => {
     setInstallingRemote(remoteInstance.id)
@@ -1232,7 +1242,7 @@ export default function Instances() {
               <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
                 <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} color="var(--text-muted)" />
               </div>
-            ) : remoteInstances.length === 0 ? (
+            ) : filteredRemoteInstances.length === 0 ? (
                <div style={{
                 height: '100%', display: 'flex', alignItems: 'center',
                 justifyContent: 'center', flexDirection: 'column', gap: 10,
@@ -1243,7 +1253,7 @@ export default function Instances() {
                </div>
             ) : (
                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 16 }}>
-                  {remoteInstances.map(ri => {
+                  {filteredRemoteInstances.map(ri => {
                     const localInst = instances.find(i => i.is_voxura && i.folder_name === ri.id)
                     const isInstalled = !!localInst
                     return (
