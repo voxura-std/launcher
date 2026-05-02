@@ -15,6 +15,7 @@ pub struct Instance {
     pub ram_mb: u32,
     pub icon_path: Option<String>,
     pub is_voxura: Option<bool>,
+    pub voxura_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +28,9 @@ pub struct VoxuraRemoteInstance {
     pub icon_url: String,
     pub archive_url: String,
     pub whitelist: Option<Vec<String>>,
+    pub version: Option<String>,
+    pub ignored_update_folders: Option<Vec<String>>,
+    pub disable_updates: Option<bool>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]

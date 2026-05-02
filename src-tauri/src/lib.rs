@@ -333,6 +333,82 @@ async fn select_custom_icon(
     }
 }
 
+async fn update_voxura_instance_if_needed(
+    app: &tauri::AppHandle,
+    instance: &mut Instance,
+) -> Result<(), String> {
+    if instance.is_voxura != Some(true) {
+        return Ok(());
+    }
+
+    let remotes = fetch_voxura_instances().await.unwrap_or_default();
+    let remote = match remotes.iter().find(|r| r.id == instance.folder_name) {
+        Some(r) => r,
+        None => return Ok(()),
+    };
+
+    if remote.disable_updates == Some(true) {
+        return Ok(());
+    }
+
+    if remote.version.is_none() || remote.version == instance.voxura_version {
+        return Ok(());
+    }
+
+    use tauri::Emitter;
+    let _ = app.emit("launcher://progress", serde_json::json!({
+        "status": "Mise à jour de l'instance...",
+        "percent": 0.0
+    }));
+
+    let client = reqwest::Client::new();
+    let game_dir = download::get_game_dir(app);
+    let vox_dir = game_dir.join("vox_instances").join(&instance.folder_name);
+    let temp_zip = game_dir.join(format!(".update_{}.zip", instance.folder_name));
+    let temp_extract = game_dir.join(format!(".update_{}_extracted", instance.folder_name));
+
+    let _ = std::fs::remove_dir_all(&temp_extract);
+    let _ = std::fs::remove_file(&temp_zip);
+
+    download::download_file(&client, &remote.archive_url, &temp_zip).await?;
+
+    let _ = app.emit("launcher://progress", serde_json::json!({
+        "status": "Extraction de la mise à jour...",
+        "percent": 100.0
+    }));
+
+    if let Ok(file) = std::fs::File::open(&temp_zip) {
+        if let Ok(mut archive) = zip::ZipArchive::new(file) {
+            let _ = archive.extract(&temp_extract);
+        }
+    }
+    let _ = tokio::fs::remove_file(&temp_zip).await;
+
+    let ignored_folders = remote.ignored_update_folders.clone().unwrap_or_default();
+    for ignored in ignored_folders {
+        let local_ignored = vox_dir.join(&ignored);
+        let update_ignored = temp_extract.join(&ignored);
+
+        if local_ignored.exists() {
+            if let Some(parent) = update_ignored.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if update_ignored.exists() {
+                 let _ = std::fs::remove_dir_all(&update_ignored);
+                 let _ = std::fs::remove_file(&update_ignored);
+            }
+            let _ = std::fs::rename(&local_ignored, &update_ignored);
+        }
+    }
+
+    let _ = std::fs::remove_dir_all(&vox_dir);
+    let _ = std::fs::rename(&temp_extract, &vox_dir);
+
+    instance.voxura_version = remote.version.clone();
+
+    Ok(())
+}
+
 #[tauri::command]
 async fn install_version(
     version_id: String,
@@ -348,13 +424,30 @@ async fn launch_instance_cmd(
     instances_state: State<'_, InstancesState>,
     running_state: State<'_, RunningState>,
 ) -> Result<(), String> {
-    let instance = {
+    let mut instance = {
         let list = instances_state.0.lock().unwrap();
         list.iter()
             .find(|i| i.id == instance_id)
             .cloned()
             .ok_or("Instance introuvable")?
     };
+
+    if instance.is_voxura == Some(true) {
+        if let Err(e) = update_voxura_instance_if_needed(&app, &mut instance).await {
+            return Err(format!("Échec de la mise à jour Voxura : {}", e));
+        }
+        
+        let inst_store = app
+            .store("instances.json")
+            .map_err(|e| format!("Store inaccessible : {e}"))?;
+        inst_store.set(format!("instance:{}", instance.id), serde_json::json!(instance));
+        let _ = inst_store.save();
+
+        let mut list = instances_state.0.lock().unwrap();
+        if let Some(i) = list.iter_mut().find(|i| i.id == instance_id) {
+            *i = instance.clone();
+        }
+    }
 
     let store = app
         .store("accounts.json")
@@ -516,6 +609,7 @@ async fn install_voxura_instance(
         ram_mb: 4096,
         icon_path: icon_ret,
         is_voxura: Some(true),
+        voxura_version: instance.version.clone(),
     };
 
     let store = app

@@ -17,7 +17,7 @@ type Tab = 'overview' | 'mods' | 'resourcepacks' | 'shaders' | 'settings' | 'log
 const LOADER_COLOR: Record<string, string> = {
   vanilla:  '#6b7280',
   fabric:   '#b5c3d4',
-  forge:    '#e8a44a',
+  forge:    '#094facff',
   neoforge: '#e86c1f',
   quilt:    '#9f5ece',
 }

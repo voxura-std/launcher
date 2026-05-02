@@ -1,7 +1,6 @@
 use reqwest::Client;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
-
 use super::types::*;
 
 const MOJANG_MANIFEST: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
@@ -209,6 +208,7 @@ pub fn create_instance(
         ram_mb: 2048,
         icon_path: None,
         is_voxura: Some(false),
+        voxura_version: None,
     })
 }
 
