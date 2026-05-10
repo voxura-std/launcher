@@ -101,6 +101,7 @@ async fn exchange_code(client: &Client, code: &str) -> Result<(String, Option<St
             ("code", code),
             ("grant_type", "authorization_code"),
             ("redirect_uri", REDIRECT_URI),
+            ("scope", "service::user.auth.xboxlive.com::MBI_SSL"),
         ])
         .send()
         .await
@@ -293,6 +294,7 @@ pub async fn refresh_ms_token(
             ("grant_type", "refresh_token"),
             ("refresh_token", refresh_token),
             ("redirect_uri", REDIRECT_URI),
+            ("scope", "service::user.auth.xboxlive.com::MBI_SSL"),
         ])
         .send()
         .await

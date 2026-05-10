@@ -244,7 +244,11 @@ async fn delete_instance(
     };
 
     if let Some(folder) = folder_name {
-        let base_dir = if is_voxura { "vox_instances" } else { "instances" };
+        let base_dir = if is_voxura {
+            "vox_instances"
+        } else {
+            "instances"
+        };
         let instance_dir = download::get_game_dir(&app).join(base_dir).join(&folder);
         if instance_dir.exists() {
             tokio::fs::remove_dir_all(&instance_dir)
@@ -309,8 +313,15 @@ async fn select_custom_icon(
 
         let (base_dir, folder_name) = {
             let list = state.0.lock().unwrap();
-            let instance = list.iter().find(|i| i.id == instance_id).ok_or_else(|| "Instance non trouvée".to_string())?;
-            let base_dir = if instance.is_voxura.unwrap_or(false) { "vox_instances" } else { "instances" };
+            let instance = list
+                .iter()
+                .find(|i| i.id == instance_id)
+                .ok_or_else(|| "Instance non trouvée".to_string())?;
+            let base_dir = if instance.is_voxura.unwrap_or(false) {
+                "vox_instances"
+            } else {
+                "instances"
+            };
             (base_dir, instance.folder_name.clone())
         };
         let dest_dir = download::get_game_dir(&app).join(base_dir);
@@ -356,10 +367,13 @@ async fn update_voxura_instance_if_needed(
     }
 
     use tauri::Emitter;
-    let _ = app.emit("launcher://progress", serde_json::json!({
-        "status": "Mise à jour de l'instance...",
-        "percent": 0.0
-    }));
+    let _ = app.emit(
+        "launcher://progress",
+        serde_json::json!({
+            "status": "Mise à jour de l'instance...",
+            "percent": 0.0
+        }),
+    );
 
     let client = reqwest::Client::new();
     let game_dir = download::get_game_dir(app);
@@ -372,10 +386,13 @@ async fn update_voxura_instance_if_needed(
 
     download::download_file(&client, &remote.archive_url, &temp_zip).await?;
 
-    let _ = app.emit("launcher://progress", serde_json::json!({
-        "status": "Extraction de la mise à jour...",
-        "percent": 100.0
-    }));
+    let _ = app.emit(
+        "launcher://progress",
+        serde_json::json!({
+            "status": "Extraction de la mise à jour...",
+            "percent": 100.0
+        }),
+    );
 
     if let Ok(file) = std::fs::File::open(&temp_zip) {
         if let Ok(mut archive) = zip::ZipArchive::new(file) {
@@ -394,8 +411,8 @@ async fn update_voxura_instance_if_needed(
                 let _ = std::fs::create_dir_all(parent);
             }
             if update_ignored.exists() {
-                 let _ = std::fs::remove_dir_all(&update_ignored);
-                 let _ = std::fs::remove_file(&update_ignored);
+                let _ = std::fs::remove_dir_all(&update_ignored);
+                let _ = std::fs::remove_file(&update_ignored);
             }
             let _ = std::fs::rename(&local_ignored, &update_ignored);
         }
@@ -436,11 +453,14 @@ async fn launch_instance_cmd(
         if let Err(e) = update_voxura_instance_if_needed(&app, &mut instance).await {
             return Err(format!("Échec de la mise à jour Voxura : {}", e));
         }
-        
+
         let inst_store = app
             .store("instances.json")
             .map_err(|e| format!("Store inaccessible : {e}"))?;
-        inst_store.set(format!("instance:{}", instance.id), serde_json::json!(instance));
+        inst_store.set(
+            format!("instance:{}", instance.id),
+            serde_json::json!(instance),
+        );
         let _ = inst_store.save();
 
         let mut list = instances_state.0.lock().unwrap();
@@ -552,9 +572,10 @@ fn get_running_instances(running_state: State<'_, RunningState>) -> Vec<String> 
 }
 
 #[tauri::command]
-async fn fetch_voxura_instances() -> Result<Vec<crate::instances::types::VoxuraRemoteInstance>, String> {
+async fn fetch_voxura_instances(
+) -> Result<Vec<crate::instances::types::VoxuraRemoteInstance>, String> {
     let client = reqwest::Client::new();
-    let url = "https://launcher.schnnurbart-studios.fr/instances.json";
+    let url = "https://launcher.voxura-studios.fr/instances.json";
     let text = client
         .get(url)
         .send()
