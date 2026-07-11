@@ -114,7 +114,7 @@ pub async fn launch_instance(
             natives_dir.to_string_lossy().to_string(),
         ),
         ("${launcher_name}", "VoxuraLauncher".to_string()),
-        ("${launcher_version}", "1.2.3".to_string()),
+        ("${launcher_version}", "1.2.4".to_string()),
         ("${classpath}", classpath.clone()),
         ("${classpath_separator}", sep.to_string()),
         (
