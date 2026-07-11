@@ -1,16 +1,17 @@
 import { useState } from 'react'
-import { ShieldCheck, Monitor, LogOut, Check, Loader2, AlertCircle, X } from 'lucide-react'
+import { ShieldCheck, Monitor, LogOut, Check, Loader2, AlertCircle, X, KeyRound } from 'lucide-react'
 import { useAccounts, type Account } from '../hooks/useAccounts'
 
 export default function Accounts() {
   const {
     accounts, activeAccount, loading, error,
-    loginMicrosoft, loginOffline, logout, selectAccount,
+    loginMicrosoft, loginOffline, loginVoxura, logout, selectAccount,
   } = useAccounts()
 
   const [view, setView]               = useState<'main' | 'offline'>('main')
   const [offlineUsername, setUsername] = useState('')
   const [offlineError, setOfflineError] = useState('')
+  const hasMicrosoft = accounts.some(account => account.kind === 'microsoft')
 
   const handleOfflineLogin = async () => {
     if (!offlineUsername.trim()) { setOfflineError('Entre un pseudo.'); return }
@@ -61,6 +62,7 @@ export default function Accounts() {
                   key={account.id}
                   account={account}
                   isActive={activeAccount?.id === account.id}
+                  hasMicrosoft={hasMicrosoft}
                   onSelect={() => selectAccount(account)}
                   onLogout={() => logout(account.id)}
                 />
@@ -68,7 +70,35 @@ export default function Accounts() {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={loginVoxura} disabled={loading} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+              padding: '22px 20px', width: 170, borderRadius: 13,
+              border: '1.5px dashed rgba(250,204,21,0.40)',
+              background: loading ? 'rgba(250,204,21,0.03)' : 'rgba(250,204,21,0.08)',
+              cursor: loading ? 'wait' : 'pointer',
+              fontFamily: 'inherit', outline: 'none', transition: 'all 0.18s',
+            }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: 'rgba(250,204,21,0.16)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {loading
+                  ? <Loader2 size={20} color="#facc15" style={{ animation: 'spin 1s linear infinite' }} />
+                  : <KeyRound size={20} color="#facc15" strokeWidth={1.8} />
+                }
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+                  {loading ? 'Connexion en cours...' : 'Compte Voxura'}
+                </p>
+                <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 3 }}>
+                  Accès projets Voxura
+                </p>
+              </div>
+            </button>
+
             <button onClick={loginMicrosoft} disabled={loading} style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
               padding: '22px 20px', width: 170, borderRadius: 13,
@@ -166,9 +196,13 @@ export default function Accounts() {
   )
 }
 
-function AccountRow({ account, isActive, onSelect, onLogout }: {
-  account: Account; isActive: boolean; onSelect: () => void; onLogout: () => void
+function AccountRow({ account, isActive, hasMicrosoft, onSelect, onLogout }: {
+  account: Account; isActive: boolean; hasMicrosoft: boolean; onSelect: () => void; onLogout: () => void
 }) {
+  const isVoxuraPass = account.kind === 'voxura'
+  const isOfflineBlocked = account.kind === 'offline' && hasMicrosoft
+  const canSelect = !isActive && !isVoxuraPass && !isOfflineBlocked
+
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 11,
@@ -189,15 +223,25 @@ function AccountRow({ account, isActive, onSelect, onLogout }: {
           {account.username}
         </p>
         <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 1 }}>
-          {account.kind === 'microsoft' ? 'Microsoft' : 'Hors-ligne'}
+          {account.kind === 'microsoft' ? 'Microsoft' : account.kind === 'voxura' ? 'Voxura' : 'Hors-ligne'}
         </p>
       </div>
-      {!isActive && (
+      {canSelect && (
         <button onClick={onSelect} style={{
           padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
           background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
           color: 'var(--text-muted)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit',
         }}>Sélectionner</button>
+      )}
+      {isVoxuraPass && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#facc15', fontWeight: 500 }}>
+          <KeyRound size={13} /> Passe Voxura
+        </div>
+      )}
+      {isOfflineBlocked && (
+        <div style={{ fontSize: 12, color: 'var(--text-faint)', fontWeight: 500 }}>
+          Priorité Microsoft
+        </div>
       )}
       {isActive && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#4ade80', fontWeight: 500 }}>

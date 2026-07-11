@@ -1,3 +1,3 @@
+pub mod addons;
 pub mod manager;
 pub mod types;
-pub mod addons;

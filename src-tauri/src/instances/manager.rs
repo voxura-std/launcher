@@ -1,7 +1,7 @@
+use super::types::*;
 use reqwest::Client;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
-use super::types::*;
 
 const MOJANG_MANIFEST: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const FABRIC_VERSIONS: &str = "https://meta.fabricmc.net/v2/versions/loader";

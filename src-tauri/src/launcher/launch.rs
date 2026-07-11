@@ -36,6 +36,7 @@ pub async fn launch_instance(
     instance: &Instance,
     account: &Account,
     mc_token: &str,
+    voxura_session_token: Option<&str>,
     running: &RunningProcesses,
 ) -> Result<(), String> {
     let game_dir = get_game_dir(app);
@@ -179,6 +180,9 @@ pub async fn launch_instance(
 
     args.push(format!("-Xmx{}m", ram));
     args.push(format!("-Xms{}m", ram_min));
+    if let Some(token) = voxura_session_token {
+        args.push(format!("-Dvoxura.sessionToken={token}"));
+    }
 
     args.push(manifest.main_class.clone());
 
@@ -198,6 +202,11 @@ pub async fn launch_instance(
         &game_dir,
         &settings,
     ));
+
+    if let Some(token) = voxura_session_token {
+        args.push("--voxuraSessionToken".to_string());
+        args.push(token.to_string());
+    }
 
     args.push("--width".to_string());
     args.push(
@@ -660,6 +669,7 @@ fn build_game_args(
     let user_type = match account.kind {
         crate::auth::types::AccountKind::Microsoft => "msa",
         crate::auth::types::AccountKind::Offline => "legacy",
+        crate::auth::types::AccountKind::Voxura => "legacy",
     };
 
     let replacements: std::collections::HashMap<&str, String> = [

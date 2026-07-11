@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import ProgressOverlay, { type Progress } from '../components/ProgressOverlay'
 
 export default function Launch() {
-  const { activeAccount } = useAccounts()
+  const { accounts, activeAccount } = useAccounts()
   const { instances, runningIds, stopInstance } = useInstances()
 
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null)
@@ -30,9 +30,24 @@ export default function Launch() {
 
   const selectedInstance = instances.find(i => i.id === selectedInstanceId)
   const isSelectedRunning = selectedInstanceId ? runningIds.has(selectedInstanceId) : false
+  const voxuraAccount = accounts.find(account => account.kind === 'voxura') ?? null
+  const displayedAccount =
+    selectedInstance?.is_voxura && activeAccount?.kind !== 'microsoft'
+      ? voxuraAccount
+      : activeAccount
+  const canLaunchSelected = Boolean(
+    selectedInstanceId
+      && displayedAccount
+      && (selectedInstance?.is_voxura ? voxuraAccount : activeAccount?.kind !== 'voxura')
+  )
+  const accountKindLabel = displayedAccount?.kind === 'offline'
+    ? 'Hors-ligne'
+    : displayedAccount?.kind === 'voxura'
+      ? 'Voxura'
+      : 'Microsoft'
 
   const handleLaunch = async () => {
-    if (!selectedInstanceId || !activeAccount) return
+    if (!selectedInstanceId || !canLaunchSelected) return
     setLaunching(true)
     try {
       await invoke('launch_instance_cmd', { instanceId: selectedInstanceId })
@@ -174,11 +189,11 @@ export default function Launch() {
             <div style={{ fontSize:9.5, color:'var(--text-faint)', fontWeight:600,
                           textTransform:'uppercase', letterSpacing:'0.07em' }}>Joueur</div>
             <div style={{ fontSize:12.5, color:'var(--text-main)', fontWeight:600, marginTop:1 }}>
-              {activeAccount ? activeAccount.username : 'Non connecté'}
+              {displayedAccount ? displayedAccount.username : 'Non connecté'}
             </div>
-            {activeAccount && (
+            {displayedAccount && (
               <div style={{ fontSize:10, color:'var(--text-muted)' }}>
-                 {activeAccount.kind === 'offline' ? 'Hors-ligne' : 'Microsoft'}
+                 {accountKindLabel}
               </div>
             )}
           </div>
@@ -355,9 +370,9 @@ export default function Launch() {
         ) : (
            <button 
              className="btn-primary" 
-             disabled={!selectedInstanceId || !activeAccount || launching}
+             disabled={!canLaunchSelected || launching}
              onClick={handleLaunch}
-             style={{ padding:'9px 24px', fontSize:13.5, borderRadius:10, opacity: (!selectedInstanceId || !activeAccount) ? 0.5 : 1 }}>
+             style={{ padding:'9px 24px', fontSize:13.5, borderRadius:10, opacity: (!canLaunchSelected) ? 0.5 : 1 }}>
              <Play size={14} fill="currentColor" strokeWidth={0}/>
              {launching ? 'Lancement...' : 'Lancer le jeu'}
            </button>

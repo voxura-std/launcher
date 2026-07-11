@@ -56,7 +56,34 @@ async fn login_offline(
         .store("accounts.json")
         .map_err(|e| format!("Store inaccessible : {e}"))?;
     store.set(format!("account:{}", account.id), json!(account));
-    store.set("active_account", json!(account.id));
+    if find_stored_account_by_kind(&app, crate::auth::types::AccountKind::Microsoft)?.is_none() {
+        store.set("active_account", json!(account.id));
+    }
+    store
+        .save()
+        .map_err(|e| format!("Erreur sauvegarde : {e}"))?;
+
+    let mut accounts = state.0.lock().unwrap();
+    accounts.retain(|a| a.id != account.id);
+    accounts.push(account.clone());
+    Ok(account)
+}
+
+#[tauri::command]
+async fn login_voxura(
+    app: tauri::AppHandle,
+    state: State<'_, AccountsState>,
+) -> Result<Account, String> {
+    let (account, tokens) = auth::voxura::login().await?;
+
+    let store = app
+        .store("accounts.json")
+        .map_err(|e| format!("Store inaccessible : {e}"))?;
+    store.set(format!("account:{}", account.id), json!(account));
+    store.set(format!("voxura_tokens:{}", account.id), json!(tokens));
+    if best_playable_account(&app)?.is_none() {
+        store.set("active_account", json!(account.id));
+    }
     store
         .save()
         .map_err(|e| format!("Erreur sauvegarde : {e}"))?;
@@ -93,6 +120,10 @@ async fn load_accounts(
 
 #[tauri::command]
 async fn get_active_account(app: tauri::AppHandle) -> Result<Option<Account>, String> {
+    if let Some(account) = best_playable_account(&app)? {
+        return Ok(Some(account));
+    }
+
     let store = app
         .store("accounts.json")
         .map_err(|e| format!("Store inaccessible : {e}"))?;
@@ -112,6 +143,25 @@ async fn set_active_account(account_id: String, app: tauri::AppHandle) -> Result
     let store = app
         .store("accounts.json")
         .map_err(|e| format!("Store inaccessible : {e}"))?;
+
+    let account: Account = store
+        .get(format!("account:{account_id}"))
+        .and_then(|v| serde_json::from_value(v).ok())
+        .ok_or("Compte introuvable")?;
+
+    if account.kind == crate::auth::types::AccountKind::Voxura {
+        return Err("Le compte Voxura est un passe-droit pour les instances Voxura, pas un compte de jeu sélectionnable.".to_string());
+    }
+
+    if account.kind == crate::auth::types::AccountKind::Offline
+        && find_stored_account_by_kind(&app, crate::auth::types::AccountKind::Microsoft)?.is_some()
+    {
+        return Err(
+            "Un compte Microsoft est connecté : il reste automatiquement prioritaire pour le jeu."
+                .to_string(),
+        );
+    }
+
     store.set("active_account", json!(account_id));
     store.save().map_err(|e| format!("Erreur sauvegarde : {e}"))
 }
@@ -128,6 +178,7 @@ async fn logout_account(
 
     store.delete(format!("account:{account_id}"));
     store.delete(format!("tokens:{account_id}"));
+    store.delete(format!("voxura_tokens:{account_id}"));
 
     if store
         .get("active_account")
@@ -135,6 +186,13 @@ async fn logout_account(
         .unwrap_or(false)
     {
         store.delete("active_account");
+        if let Some(next) = best_playable_account(&app)?.or_else(|| {
+            find_stored_account_by_kind(&app, crate::auth::types::AccountKind::Voxura)
+                .ok()
+                .flatten()
+        }) {
+            store.set("active_account", json!(next.id));
+        }
     }
 
     store
@@ -352,7 +410,9 @@ async fn update_voxura_instance_if_needed(
         return Ok(());
     }
 
-    let remotes = fetch_voxura_instances().await.unwrap_or_default();
+    let remotes = fetch_voxura_instances(app.clone())
+        .await
+        .unwrap_or_default();
     let remote = match remotes.iter().find(|r| r.id == instance.folder_name) {
         Some(r) => r,
         None => return Ok(()),
@@ -469,22 +529,31 @@ async fn launch_instance_cmd(
         }
     }
 
-    let store = app
-        .store("accounts.json")
-        .map_err(|e| format!("Store inaccessible : {e}"))?;
+    let mut voxura_session_token: Option<String> = None;
+    let is_voxura_instance = instance.is_voxura == Some(true);
+    let launch_account = resolve_launch_account(&app, is_voxura_instance)?;
 
-    let active_id = store
-        .get("active_account")
-        .and_then(|v| v.as_str().map(|s| s.to_string()))
-        .ok_or("Aucun compte sélectionné. Va dans l'onglet Comptes.")?;
+    if is_voxura_instance {
+        let voxura_account = find_stored_voxura_account(&app)?;
+        let access_token = auth::voxura::ensure_valid_token(&app, &voxura_account.id).await?;
+        let identity_source = match launch_account.kind {
+            crate::auth::types::AccountKind::Microsoft => "microsoft",
+            crate::auth::types::AccountKind::Offline => "offline",
+            crate::auth::types::AccountKind::Voxura => "voxura",
+        };
+        voxura_session_token = Some(
+            auth::voxura::create_minecraft_session(
+                &access_token,
+                &launch_account.username,
+                &launch_account.id,
+                identity_source,
+            )
+            .await?,
+        );
+    }
 
-    let account: Account = store
-        .get(format!("account:{active_id}"))
-        .and_then(|v| serde_json::from_value(v).ok())
-        .ok_or("Compte introuvable")?;
-
-    let mc_token = if account.kind == crate::auth::types::AccountKind::Microsoft {
-        match auth::microsoft::ensure_valid_token(&app, &active_id).await {
+    let mc_token = if launch_account.kind == crate::auth::types::AccountKind::Microsoft {
+        match auth::microsoft::ensure_valid_token(&app, &launch_account.id).await {
             Ok(token) => token,
             Err(e) => return Err(format!("Erreur de session Microsoft : {e}")),
         }
@@ -555,7 +624,111 @@ async fn launch_instance_cmd(
         _ => {}
     }
 
-    launch::launch_instance(&app, &instance, &account, &mc_token, &running_state.0).await
+    launch::launch_instance(
+        &app,
+        &instance,
+        &launch_account,
+        &mc_token,
+        voxura_session_token.as_deref(),
+        &running_state.0,
+    )
+    .await
+}
+
+fn find_stored_voxura_account(app: &tauri::AppHandle) -> Result<Account, String> {
+    find_stored_account_by_kind(app, crate::auth::types::AccountKind::Voxura)?
+        .ok_or_else(|| "Connecte un compte Voxura pour accéder aux instances Voxura.".to_string())
+}
+
+fn find_stored_account_by_kind(
+    app: &tauri::AppHandle,
+    kind: crate::auth::types::AccountKind,
+) -> Result<Option<Account>, String> {
+    Ok(load_stored_accounts(app)?
+        .into_iter()
+        .find(|account| account.kind == kind))
+}
+
+fn load_stored_accounts(app: &tauri::AppHandle) -> Result<Vec<Account>, String> {
+    let store = app
+        .store("accounts.json")
+        .map_err(|e| format!("Store inaccessible : {e}"))?;
+
+    let mut accounts = Vec::new();
+    for key in store.keys() {
+        if key.starts_with("account:") {
+            if let Some(value) = store.get(&key) {
+                if let Ok(account) = serde_json::from_value::<Account>(value) {
+                    accounts.push(account);
+                }
+            }
+        }
+    }
+
+    Ok(accounts)
+}
+
+fn best_playable_account(app: &tauri::AppHandle) -> Result<Option<Account>, String> {
+    let accounts = load_stored_accounts(app)?;
+    if let Some(account) = accounts
+        .iter()
+        .find(|account| account.kind == crate::auth::types::AccountKind::Microsoft)
+    {
+        return Ok(Some(account.clone()));
+    }
+    if let Some(account) = accounts
+        .iter()
+        .find(|account| account.kind == crate::auth::types::AccountKind::Offline)
+    {
+        return Ok(Some(account.clone()));
+    }
+    Ok(None)
+}
+
+fn resolve_launch_account(
+    app: &tauri::AppHandle,
+    is_voxura_instance: bool,
+) -> Result<Account, String> {
+    if is_voxura_instance {
+        if let Some(account) =
+            find_stored_account_by_kind(app, crate::auth::types::AccountKind::Microsoft)?
+        {
+            return Ok(account);
+        }
+        return find_stored_voxura_account(app);
+    }
+
+    if let Some(account) = best_playable_account(app)? {
+        return Ok(account);
+    }
+
+    Err(
+        "Ajoute un compte Microsoft ou hors-ligne pour lancer une instance personnelle."
+            .to_string(),
+    )
+}
+
+fn voxura_account_can_access(
+    account: &Account,
+    instance: &crate::instances::types::VoxuraRemoteInstance,
+) -> bool {
+    let Some(whitelist) = &instance.whitelist else {
+        return true;
+    };
+    if whitelist.is_empty() {
+        return true;
+    }
+
+    whitelist.iter().any(|entry| {
+        let entry = entry.trim();
+        entry.eq_ignore_ascii_case(&account.username)
+            || entry.eq_ignore_ascii_case(&account.id)
+            || account
+                .email
+                .as_deref()
+                .map(|email| entry.eq_ignore_ascii_case(email))
+                .unwrap_or(false)
+    })
 }
 
 #[tauri::command]
@@ -573,7 +746,9 @@ fn get_running_instances(running_state: State<'_, RunningState>) -> Vec<String> 
 
 #[tauri::command]
 async fn fetch_voxura_instances(
+    app: tauri::AppHandle,
 ) -> Result<Vec<crate::instances::types::VoxuraRemoteInstance>, String> {
+    let voxura_account = find_stored_voxura_account(&app)?;
     let client = reqwest::Client::new();
     let url = "https://launcher.voxura-studios.fr/instances.json";
     let text = client
@@ -585,7 +760,13 @@ async fn fetch_voxura_instances(
         .await
         .map_err(|e| format!("Lecture API: {e}"))?;
 
-    serde_json::from_str(&text).map_err(|e| format!("JSON invalide : {e}"))
+    let instances: Vec<crate::instances::types::VoxuraRemoteInstance> =
+        serde_json::from_str(&text).map_err(|e| format!("JSON invalide : {e}"))?;
+
+    Ok(instances
+        .into_iter()
+        .filter(|instance| voxura_account_can_access(&voxura_account, instance))
+        .collect())
 }
 
 #[tauri::command]
@@ -594,6 +775,11 @@ async fn install_voxura_instance(
     app: tauri::AppHandle,
     state: State<'_, InstancesState>,
 ) -> Result<Instance, String> {
+    let voxura_account = find_stored_voxura_account(&app)?;
+    if !voxura_account_can_access(&voxura_account, &instance) {
+        return Err("Ton compte Voxura n'est pas whitelist sur cette instance.".to_string());
+    }
+
     let client = reqwest::Client::new();
     let game_dir = download::get_game_dir(&app);
     let vox_dir = game_dir.join("vox_instances").join(&instance.id);
@@ -706,6 +892,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             login_microsoft,
             login_offline,
+            login_voxura,
             load_accounts,
             get_active_account,
             set_active_account,

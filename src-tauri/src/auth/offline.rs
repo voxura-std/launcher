@@ -1,5 +1,5 @@
-use uuid::Uuid;
 use super::types::{Account, AccountKind};
+use uuid::Uuid;
 
 pub fn create_offline_account(username: &str) -> Result<Account, String> {
     let username = username.trim();
@@ -25,5 +25,6 @@ pub fn create_offline_account(username: &str) -> Result<Account, String> {
         id,
         username: username.to_string(),
         kind: AccountKind::Offline,
+        email: None,
     })
 }

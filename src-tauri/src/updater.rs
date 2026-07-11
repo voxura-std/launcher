@@ -64,10 +64,8 @@ pub async fn check_updates(app: AppHandle) -> Result<UpdateCheck, String> {
     let current_version = app.package_info().version.to_string();
     let release_version = release.tag_name.trim_start_matches('v').to_string();
 
-    let parse_ver = |v: &str| -> Vec<u32> {
-        v.split('.').filter_map(|s| s.parse().ok()).collect()
-    };
-    
+    let parse_ver = |v: &str| -> Vec<u32> { v.split('.').filter_map(|s| s.parse().ok()).collect() };
+
     let c_parts = parse_ver(&current_version);
     let r_parts = parse_ver(&release_version);
 
@@ -75,8 +73,13 @@ pub async fn check_updates(app: AppHandle) -> Result<UpdateCheck, String> {
     for i in 0..std::cmp::max(c_parts.len(), r_parts.len()) {
         let c = c_parts.get(i).unwrap_or(&0);
         let r = r_parts.get(i).unwrap_or(&0);
-        if r > c { is_newer = true; break; }
-        if r < c { break; }
+        if r > c {
+            is_newer = true;
+            break;
+        }
+        if r < c {
+            break;
+        }
     }
 
     if !is_newer {

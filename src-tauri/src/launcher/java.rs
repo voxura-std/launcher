@@ -122,13 +122,13 @@ fn java_bin_path(base: &Path) -> PathBuf {
 pub fn get_java_version(java_path: &Path) -> Option<u32> {
     let mut cmd = Command::new(java_path);
     cmd.arg("-version");
-    
+
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x08000000);
     }
-    
+
     let output = cmd.output().ok()?;
 
     let text = String::from_utf8_lossy(&output.stderr);

@@ -81,6 +81,7 @@ pub async fn login_with_webview(app: tauri::AppHandle) -> Result<(Account, Store
         id: profile.id,
         username: profile.name,
         kind: AccountKind::Microsoft,
+        email: None,
     };
 
     let stored = StoredTokens {
@@ -310,8 +311,8 @@ pub async fn refresh_ms_token(
         return Err(format!("Refresh MS HTTP {status} : {text}"));
     }
 
-    let json: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("Refresh token invalide ({e}) : {text}"))?;
+    let json: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| format!("Refresh token invalide ({e}) : {text}"))?;
 
     let access_token = json["access_token"]
         .as_str()
@@ -337,8 +338,8 @@ pub async fn ensure_valid_token(
         .get(format!("tokens:{account_id}"))
         .ok_or("Tokens introuvables. Vous devez vous reconnecter.")?;
 
-    let mut tokens: StoredTokens =
-        serde_json::from_value(tokens_val).map_err(|_| "Tokens invalides. Vous devez vous reconnecter.")?;
+    let mut tokens: StoredTokens = serde_json::from_value(tokens_val)
+        .map_err(|_| "Tokens invalides. Vous devez vous reconnecter.")?;
 
     if unix_now() + 3600 >= tokens.expires_at {
         if let Some(refresh_token) = &tokens.refresh_token {
@@ -361,7 +362,10 @@ pub async fn ensure_valid_token(
 
             return Ok(mc_token);
         } else {
-            return Err("Session expirée (aucun Refresh Token disponible). Reconnectez-vous manuellement.".to_string());
+            return Err(
+                "Session expirée (aucun Refresh Token disponible). Reconnectez-vous manuellement."
+                    .to_string(),
+            );
         }
     }
 

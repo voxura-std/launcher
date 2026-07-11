@@ -5,6 +5,7 @@ pub struct Account {
     pub id: String,
     pub username: String,
     pub kind: AccountKind,
+    pub email: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -12,6 +13,29 @@ pub struct Account {
 pub enum AccountKind {
     Microsoft,
     Offline,
+    Voxura,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoxuraTokens {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub expires_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoxuraMeResponse {
+    pub user: VoxuraUser,
+    #[serde(rename = "voxuraUuid")]
+    pub voxura_uuid: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoxuraUser {
+    pub id: String,
+    pub email: String,
+    pub username: String,
+    pub role: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
