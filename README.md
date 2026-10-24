@@ -1,3 +1,3 @@
 # Voxura Launcher
 
-in development
+Development discontinued
